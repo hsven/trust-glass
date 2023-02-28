@@ -4,7 +4,7 @@ Before executing code once, run:
 source ${sgx-sdk-install-path}/environment
 
 #e.g.
-source /home/hsven/sgxsdk/environment
+source /opt/intel/sgxsdk/environment
 ```
 You can run samples with:
 ```sh

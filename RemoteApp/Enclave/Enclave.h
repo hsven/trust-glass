@@ -41,6 +41,16 @@
 extern "C" {
 #endif
 
+struct ResponseMessage {
+    std::string message;
+    std::string digitalSignature;
+    std::string freshnessToken;
+
+    const char* generate_final() {
+        return (message+digitalSignature+freshnessToken).c_str();
+    }
+};
+
 
 int printf(const char* fmt, ...);
 

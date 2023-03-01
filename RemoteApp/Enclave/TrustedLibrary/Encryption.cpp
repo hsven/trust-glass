@@ -1,6 +1,6 @@
 #include "../Enclave.h"
 // #include "Encryption.h"
-#include <string>
+// #include <string>
 
 
 
@@ -10,7 +10,6 @@ char *base64(const unsigned char *input, int length) {
   const auto ol = EVP_EncodeBlock(reinterpret_cast<unsigned char *>(output), input, length);
   if (pl != ol) { return NULL; }
   return output;
-//   return NULL;
 }
 
 
@@ -100,7 +99,7 @@ void generate_rsa_key() {
 }
 
 // , unsigned char **digest, unsigned int *digest_len
-void sign_message(const char* message) {
+std::string sign_message(std::string message) {
     // size_t len = sizeof(message) - 1;
     // unsigned int mdlen = EVP_MD_size(EVP_sha256());
     EVP_MD_CTX *mdctx;
@@ -109,19 +108,19 @@ void sign_message(const char* message) {
     {
         printf("EVP_MD_CTX_new: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        return;
+        return "";
     }
 	if(1 != EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL))
     {
         printf("EVP_DigestInit_ex: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        return;
+        return "";
     }
-	if(1 != EVP_DigestUpdate(mdctx, message, strlen(message)))
+	if(1 != EVP_DigestUpdate(mdctx, message.c_str(), message.length()))
     {
         printf("EVP_DigestUpdate: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        return;
+        return "";
     }
     // unsigned char *digest = (unsigned char *)OPENSSL_malloc(EVP_MD_size(EVP_sha256()));
     unsigned char digest_value[EVP_MAX_MD_SIZE];
@@ -137,13 +136,13 @@ void sign_message(const char* message) {
     {
         printf("EVP_DigestFinal_ex: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        return;
+        return "";
     }
 
 	EVP_MD_CTX_free(mdctx);
     // printf("%d", digest_len);
-    char* b64String = base64(digest_value, digest_len);
-    printf("%s", b64String);
+    return base64(digest_value, digest_len);
+    // printf("%s", b64String);
     // std::string ret;
     // ret.reserve(*digest_len * 2);
     // for(const unsigned char *ptr = digest; ptr < digest+*digest_len; ++ptr) {

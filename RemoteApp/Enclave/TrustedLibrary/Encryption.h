@@ -8,6 +8,7 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 // #include <openssl/sha
+#include <string>
 
 void generate_rsa_key(void);
-void sign_message(const char* message); 
+std::string sign_message(std::string message); 

@@ -33,7 +33,7 @@
 #include "Enclave_t.h" /* print_string */
 #include <stdarg.h>
 #include <stdio.h> /* vsnprintf */
-#include <string.h>
+#include <string>
 
 
 /* 
@@ -52,6 +52,15 @@ int printf(const char* fmt, ...)
     return (int)strnlen(buf, BUFSIZ - 1) + 1;
 }
 
+/* 
+ * prepare_response: 
+ *   Creates an adequate response according to the input command.
+ */
+std::string prepare_response(std::string in) {
+    std::string response = "response_";
+    return response + in;
+}
+
 
 
 void ecall_hello_world(void)
@@ -61,10 +70,37 @@ void ecall_hello_world(void)
 }
 
 void ecall_receive_input(const char* in) {
-    // printf("%s", in);
-    sign_message(in);
+    //Decrypt message
+
+    //Generate Response Message
+    ResponseMessage* response = new ResponseMessage();
+
+    //Prepare Response
+    response->message = prepare_response(in);
+
+    //Create freshness token
+    response->freshnessToken = "";
+
+    //Sign message
+    response->digitalSignature = sign_message(response->message);
+
+    
+    //Prints for DEBUG purposes
+    printf("Message: %s\n", response->message.c_str());
+    printf("Signature: %s\n", response->digitalSignature.c_str());
+    printf("Fresh Token: %s", response->freshnessToken.c_str());
+
+
+    ocall_print_qr_code(response->generate_final());
+
+    delete response;
 }
 
-void ecall_receive_shared_key(const char* in) {
-    printf("%s", in);
+// void ecall_receive_shared_key(const char* in) {
+//     printf("%s", in);
+// }
+
+void ecall_setup_enclave(void) {
+    //Prepare keys
 }
+

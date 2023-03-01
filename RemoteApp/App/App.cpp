@@ -44,6 +44,8 @@
 #include "Enclave_u.h"
 #include "AppOCalls.cpp"
 #include "AppECalls.cpp"
+
+#include "UntrustedLibrary/Server.h"
 /* Global EID shared by multiple threads */
 // sgx_enclave_id_t global_eid = 0;
 
@@ -184,6 +186,9 @@ int SGX_CDECL main(int argc, char *argv[])
 {
     (void)(argc);
     (void)(argv);
+
+    server_loop();
+    exit(0);
 
 
     /* Initialize the enclave */

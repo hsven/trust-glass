@@ -1,0 +1,9 @@
+.vscode/*
+
+# Exclude any key related file
+**/*.pem
+**/*.crt
+**/*.key
+**/*.csr
+**/*.csr
+**/*.srl

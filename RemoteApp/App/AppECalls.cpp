@@ -27,7 +27,7 @@ void ecall_send_key() {
 
     // std::string message = rsaEncrypt(rsaEncrypt(tempKey, ""), "");
 
-    ret = ecall_receive_shared_key(global_eid, tempKey.c_str());
-    if (ret != SGX_SUCCESS)
-        abort();
+    // ret = ecall_receive_shared_key(global_eid, tempKey.c_str());
+    // if (ret != SGX_SUCCESS)
+    //     abort();
 }

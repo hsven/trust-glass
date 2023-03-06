@@ -8,18 +8,26 @@
  */
 
 #include <stdio.h>
+#include <iostream>
+#include <sstream>
 #include <unistd.h>
-#include <string.h>
+#include <string>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#include "Lib/qrcodegen.hpp"
+
 static const int server_port = 4433;
+
 
 // typedef unsigned char   bool;
 #define true            1
 #define false           0
+
+static std::string toSvgString(const qrcodegen::QrCode &qr, int border);
+static void printQr(const qrcodegen::QrCode &qr);
 
 /*
  * This flag won't be useful until both accept/read (TCP & SSL) methods
@@ -85,7 +93,7 @@ void configure_client_context(SSL_CTX *ctx)
      *     SSL_CTX_set_default_verify_paths(ctx);
      * In this demo though we are using a self-signed certificate, so the client must trust it directly.
      */
-    if (!SSL_CTX_load_verify_locations(ctx, "cert.crt", NULL)) {
+    if (!SSL_CTX_load_verify_locations(ctx, "cert.pem", NULL)) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
@@ -93,10 +101,8 @@ void configure_client_context(SSL_CTX *ctx)
 
 void usage()
 {
-    printf("Usage: sslecho s\n");
-    printf("       --or--\n");
-    printf("       sslecho c ip\n");
-    printf("       c=client, s=server, ip=dotted ip of server\n");
+    printf("Usage: ./client <IP>\n");
+    printf("       <IP>=dotted ip of server\n");
     exit(1);
 }
 
@@ -136,11 +142,11 @@ int main(int argc, char **argv)
     // }
     // isServer = (argv[1][0] == 's') ? true : false;
     /* If client get remote server address (could be 127.0.0.1) */
-    if (argc != 3) {
+    if (argc != 2) {
         usage();
         /* NOTREACHED */
     }
-    rem_server_ip = argv[2];
+    rem_server_ip = argv[1];
 
     /* Create context used by both client and server */
     ssl_ctx = create_context();
@@ -169,9 +175,9 @@ int main(int argc, char **argv)
     ssl = SSL_new(ssl_ctx);
     SSL_set_fd(ssl, client_skt);
     /* Set hostname for SNI */
-    SSL_set_tlsext_host_name(ssl, rem_server_ip);
+    // SSL_set_tlsext_host_name(ssl, rem_server_ip);
     /* Configure server hostname check */
-    SSL_set1_host(ssl, rem_server_ip);
+    // SSL_set1_host(ssl, rem_server_ip);
 
     /* Now do SSL connect with server */
     if (SSL_connect(ssl) == 1) {
@@ -198,16 +204,29 @@ int main(int argc, char **argv)
             }
 
             /* Wait for the echo */
-            rxlen = SSL_read(ssl, rxbuf, rxcap);
-            if (rxlen <= 0) {
-                printf("Server closed connection\n");
-                ERR_print_errors_fp(stderr);
-                break;
-            } else {
-                /* Show it */
-                rxbuf[rxlen] = 0;
-                printf("Received: %s", rxbuf);
-            }
+            printf("Received: \n");
+            std::string response = std::string("");
+            do {
+                rxlen = SSL_read(ssl, rxbuf, rxcap);
+
+                if (rxlen <= 0) {
+                    printf("Server closed connection\n");
+                    ERR_print_errors_fp(stderr);
+                    break;
+                } else {
+                    /* Show it */
+                    rxbuf[rxlen] = 0;
+                    response.append(rxbuf);
+                    // printf("%s", rxbuf);
+                }
+            } while(strstr(rxbuf, "END") == NULL);
+            printf("--End--\n");
+
+            qrcodegen::QrCode::Ecc errCorLvl = qrcodegen::QrCode::Ecc::LOW;  // Error correction level
+            // Make and print the QR Code symbol
+            qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(response.c_str(), errCorLvl);
+            printQr(qr);
+
         }
         printf("Client exiting...\n");
     } else {
@@ -237,4 +256,50 @@ int main(int argc, char **argv)
     printf("sslecho exiting\n");
 
     return 0;
+}
+
+
+
+/*---- Utilities ----*/
+
+// Returns a string of SVG code for an image depicting the given QR Code, with the given number
+// of border modules. The string always uses Unix newlines (\n), regardless of the platform.
+static std::string toSvgString(const qrcodegen::QrCode &qr, int border) {
+	if (border < 0)
+		throw std::domain_error("Border must be non-negative");
+	if (border > INT_MAX / 2 || border * 2 > INT_MAX - qr.getSize())
+		throw std::overflow_error("Border too large");
+	
+	std::ostringstream sb;
+	sb << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	sb << "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n";
+	sb << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" viewBox=\"0 0 ";
+	sb << (qr.getSize() + border * 2) << " " << (qr.getSize() + border * 2) << "\" stroke=\"none\">\n";
+	sb << "\t<rect width=\"100%\" height=\"100%\" fill=\"#FFFFFF\"/>\n";
+	sb << "\t<path d=\"";
+	for (int y = 0; y < qr.getSize(); y++) {
+		for (int x = 0; x < qr.getSize(); x++) {
+			if (qr.getModule(x, y)) {
+				if (x != 0 || y != 0)
+					sb << " ";
+				sb << "M" << (x + border) << "," << (y + border) << "h1v1h-1z";
+			}
+		}
+	}
+	sb << "\" fill=\"#000000\"/>\n";
+	sb << "</svg>\n";
+	return sb.str();
+}
+
+
+// Prints the given QrCode object to the console.
+static void printQr(const qrcodegen::QrCode &qr) {
+	int border = 4;
+	for (int y = -border; y < qr.getSize() + border; y++) {
+		for (int x = -border; x < qr.getSize() + border; x++) {
+			std::cout << (qr.getModule(x, y) ? "##" : "  ");
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
 }

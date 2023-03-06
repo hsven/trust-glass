@@ -14,10 +14,13 @@ void ecall_hello() {
 
 void ecall_send_input(std::string in) {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    // char* response = new char[4096];
 
     ret = ecall_receive_input(global_eid, in.c_str());
     if (ret != SGX_SUCCESS)
         abort();
+
+    // return response;
 }
 
 void ecall_send_key() {

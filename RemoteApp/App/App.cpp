@@ -34,7 +34,6 @@
 // #include <string>
 #include <assert.h>
 #include <iostream>
-
 # include <unistd.h>
 # include <pwd.h>
 # define MAX_PATH FILENAME_MAX
@@ -187,8 +186,7 @@ int SGX_CDECL main(int argc, char *argv[])
     (void)(argc);
     (void)(argv);
 
-    server_loop();
-    exit(0);
+    // exit(0);
 
 
     /* Initialize the enclave */
@@ -215,18 +213,101 @@ int SGX_CDECL main(int argc, char *argv[])
 
     std::string x = "Hello World!\n";
     // generate_QR_code(x);
-    ecall_send_input(x);
+    // ecall_send_input(x);
     
-    while (x.compare("") != 0) {
-        std::cout << "\nInput string (Empty to exit): ";
-        std::getline(std::cin, x);
+    // while (x.compare("") != 0) {
+    //     std::cout << "\nInput string (Empty to exit): ";
+    //     std::getline(std::cin, x);
     
-        ecall_send_input(x);
-    }
+    //     ecall_send_input(x);
+    // }
 
     // ecall_sum();
     std::cout << "\n";
     /* Destroy the enclave */
+
+
+    SSL_CTX *ssl_ctx = NULL;
+    // SSL *ssl = NULL;
+    int server_skt = -1;
+    int client_skt = -1;
+    bool is_server_running = true;
+    char rxbuf[128];
+    size_t rxcap = sizeof(rxbuf);
+    int rxlen;
+    struct sockaddr_in addr;
+    unsigned int addr_len = sizeof(addr);
+    server_loop(&ssl_ctx, &server_skt);
+
+    while (is_server_running) {
+        /* Wait for TCP connection from client */
+        client_skt = accept(server_skt, (struct sockaddr*) &addr,
+                &addr_len);
+        if (client_skt < 0) {
+            perror("Unable to accept");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Client TCP connection accepted\n");
+
+        /* Create server SSL structure using newly accepted client socket */
+        ssl = SSL_new(ssl_ctx);
+        SSL_set_fd(ssl, client_skt);
+        printf("YOO\n");
+
+        /* Wait for SSL connection from the client */
+        if (SSL_accept(ssl) <= 0) {
+            ERR_print_errors_fp(stderr);
+            is_server_running = false;
+        } else {
+
+            printf("Client SSL connection accepted\n\n");
+
+            /* Echo loop */
+            while (true) {
+                /* Get message from client; will fail if client closes connection */
+                if ((rxlen = SSL_read(ssl, rxbuf, rxcap)) <= 0) {
+                    if (rxlen == 0) {
+                        printf("Client closed connection\n");
+                    }
+                    ERR_print_errors_fp(stderr);
+                    break;
+                }
+                /* Insure null terminated input */
+                rxbuf[rxlen] = 0;
+                /* Look for kill switch */
+                if (strcmp(rxbuf, "kill\n") == 0) {
+                    /* Terminate...with extreme prejudice */
+                    printf("Server received 'kill' command\n");
+                    is_server_running = false;
+                    break;
+                }
+                /* Show received message */
+                // printf("Received: %s", rxbuf);
+
+                // char* response = new char[4098];
+                ecall_send_input(std::string(rxbuf));
+                // char destination[strlen(response) + 1];
+                // strcpy(destination, response);
+                // TODO:: Seems like utilizing the string in any capacity causes a seg fault, idk why
+                /* Echo it back */
+                // printf("THE RESPONSEW: %s", response);
+                // if (SSL_write(ssl, "OK", strlen("OK")) <= 0) {
+                //     ERR_print_errors_fp(stderr);
+                // }
+
+                // delete response;
+            }
+        }
+        if (is_server_running) {
+            /* Cleanup for next client */
+            SSL_shutdown(ssl);
+            SSL_free(ssl);
+            close(client_skt);
+        }
+    }
+
+
     sgx_destroy_enclave(global_eid);
     
     printf("Info: SampleEnclave successfully returned.\n");

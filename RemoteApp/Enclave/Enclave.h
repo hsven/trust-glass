@@ -46,8 +46,8 @@ struct ResponseMessage {
     std::string digitalSignature;
     std::string freshnessToken;
 
-    const char* generate_final() {
-        return (message+digitalSignature+freshnessToken).c_str();
+    char* generate_final() {
+        return (message+digitalSignature+freshnessToken).data();
     }
 };
 

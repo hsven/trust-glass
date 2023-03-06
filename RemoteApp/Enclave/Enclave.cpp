@@ -91,9 +91,9 @@ void ecall_receive_input(const char* in) {
     printf("Fresh Token: %s", response->freshnessToken.c_str());
 
 
+    // *out = response->generate_final();
     ocall_print_qr_code(response->generate_final());
-
-    delete response;
+    // return res;
 }
 
 // void ecall_receive_shared_key(const char* in) {

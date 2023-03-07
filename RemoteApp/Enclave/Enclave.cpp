@@ -47,7 +47,7 @@ int printf(const char* fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
-    ocall_print_string(buf);
+    // ocall_print_string(buf);
     // ocall_print_qr_code(buf);
     return (int)strnlen(buf, BUFSIZ - 1) + 1;
 }
@@ -92,7 +92,9 @@ void ecall_receive_input(const char* in) {
 
 
     // *out = response->generate_final();
-    ocall_print_qr_code(response->generate_final());
+    // ocall_print_qr_code(response->generate_final());
+    ocall_send_response(response->generate_final(), response->total_length());
+
     // return res;
 }
 

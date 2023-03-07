@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <unistd.h>
 #include <string>
@@ -17,7 +18,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-#include "Lib/qrcodegen.hpp"
+#include "qrcodegen.hpp"
 
 static const int server_port = 4433;
 
@@ -26,6 +27,7 @@ static const int server_port = 4433;
 #define true            1
 #define false           0
 
+static void toSvgFile(std::string dest, const qrcodegen::QrCode &qr, int border);
 static std::string toSvgString(const qrcodegen::QrCode &qr, int border);
 static void printQr(const qrcodegen::QrCode &qr);
 
@@ -226,6 +228,7 @@ int main(int argc, char **argv)
             // Make and print the QR Code symbol
             qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(response.c_str(), errCorLvl);
             printQr(qr);
+            toSvgFile("../qrCode.svg", qr, 1);
 
         }
         printf("Client exiting...\n");
@@ -261,6 +264,15 @@ int main(int argc, char **argv)
 
 
 /*---- Utilities ----*/
+
+static void toSvgFile(std::string dest, const qrcodegen::QrCode &qr, int border) {
+    std::string svgString = toSvgString(qr, border);
+    std::ofstream file;
+    file.open(dest);
+    file << svgString;
+    file.close();
+
+}
 
 // Returns a string of SVG code for an image depicting the given QR Code, with the given number
 // of border modules. The string always uses Unix newlines (\n), regardless of the platform.

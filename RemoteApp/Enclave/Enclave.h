@@ -49,6 +49,10 @@ struct ResponseMessage {
     char* generate_final() {
         return (message+digitalSignature+freshnessToken).data();
     }
+
+    size_t total_length() {
+        return (message+digitalSignature+freshnessToken).size();
+    }
 };
 
 

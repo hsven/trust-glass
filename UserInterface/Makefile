@@ -1,24 +1,4 @@
-# PROG ?= client
-# LIB = qrcodegencpp
-# LIBFILE = lib$(LIB).a
-# LIBOBJ = ./Lib
-
-# all: $(LIB) $(PROG)
-
-# # Debug version.
-# #
-# $(PROG): Client.cpp
-
-# 	g++ -O0 -g3 -W -Wall -I../../include -L../../ -o $(PROG) Client.cpp -LLib/qrcodegen.o -lssl -lcrypto 
-
-# $(LIB):
-# 	g++ -O0 -g3 -W -Wall -c Lib/qrcodegen.cpp
-# 	mv qrcodegen.o Lib/
-
-
-# clean:
-# 	rm -rf $(PROG) *.o *.obj
-
+# MAKEFILE taken from https://github.com/nayuki/QR-Code-generator/blob/master/cpp/Makefile
 
 
 # ---- Configuration options ----
@@ -49,9 +29,9 @@ CXXFLAGS += -std=c++11 -O
 
 # ---- Targets to build ----
 
-LIB = ./Lib/qrcodegencpp
+LIB = qrcodegencpp
 LIBFILE = lib$(LIB).a
-LIBOBJ = ./Lib/qrcodegen.o
+LIBOBJ = qrcodegen.o
 MAINS = Client
 
 # Build all binaries
@@ -64,7 +44,7 @@ clean:
 
 # Executable files
 %: %.o $(LIBFILE)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< -L . -l $(LIB)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< -L . -l $(LIB) -lssl -lcrypto  
 
 # The library
 $(LIBFILE): $(LIBOBJ)

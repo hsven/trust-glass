@@ -84,9 +84,8 @@ public class BarcodeGraphic extends Graphic {
     if (barcode == null) {
       throw new IllegalStateException("Attempting to draw a null barcode.");
     }
-    // Draws the bounding box around the BarcodeBlock.
-//    RectF rect = new RectF(barcode.getBoundingBox());
 
+    // Draws the scree-wide rect for the text.
     RectF rect = new RectF(0, 0, getScreenWidth() * 2, getScreenHeight() * 2);
 
     // If the image is flipped, the left will be translated to right, and the right to left.
@@ -98,32 +97,17 @@ public class BarcodeGraphic extends Graphic {
     rect.bottom = translateY(rect.bottom);
     canvas.drawRect(rect, rectPaint);
 
-    // Draws other object info.
-//    float lineHeight = TEXT_SIZE + (2 * STROKE_WIDTH);
-//    float textWidth = barcodePaint.measureText(barcode.getDisplayValue());
-//    canvas.drawRect(
-//        rect.left - STROKE_WIDTH,
-//        rect.top - lineHeight,
-//        rect.left + textWidth + (2 * STROKE_WIDTH),
-//        rect.top,
-//        labelPaint);
-    // Renders the barcode at the bottom of the box.
-//    canvas.drawText(barcode.getDisplayValue(), rect.left, rect.top, barcodePaint);
     drawCenteredText(canvas, barcodePaint, barcode.getDisplayValue());
   }
 
   public void drawCenteredText(Canvas canvas, Paint paint, String text) {
-//    Rect bounds = new Rect();
-//    paint.getTextBounds(text, 0, text.length(), bounds);
-//    int x = (canvas.getWidth() / 2) - (bounds.width() / 2);
-//    int y = (canvas.getHeight() / 2) - (bounds.height() / 2);
-//    canvas.drawText(text, x, y, paint);
+
     textPaint = new TextPaint();
     textPaint.setAntiAlias(true);
     textPaint.setTextSize(30 * Resources.getSystem().getDisplayMetrics().density);
     textPaint.setColor(0xFF000000);
     mStaticLayout = new StaticLayout(text, textPaint, (int) getScreenWidth(), Layout.Alignment.ALIGN_CENTER, 1.0f, 0, false);
     mStaticLayout.draw(canvas);
-//    canvas.restore();
+
   }
 }

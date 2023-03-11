@@ -6,7 +6,7 @@ android {
     compileSdkVersion 31
 
     defaultConfig {
-        applicationId "com.google.mlkit.vision.demo"
+        applicationId 'pt.ulisboa.tecnico.trustglass'
         minSdkVersion 20
         multiDexEnabled true
         targetSdkVersion 31

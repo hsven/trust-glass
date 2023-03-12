@@ -109,6 +109,10 @@
             android:name=".preference.SettingsActivity"
             android:exported="false"/>
 
+        <activity
+            android:name=".java.QRTextActivity"
+            android:exported="false"/>
+
     </application>
     <queries>
         <intent>

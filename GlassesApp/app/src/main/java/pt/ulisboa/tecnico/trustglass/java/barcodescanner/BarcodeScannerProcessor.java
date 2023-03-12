@@ -16,7 +16,6 @@
 
 package pt.ulisboa.tecnico.trustglass.java.barcodescanner;
 
-import android.content.Context;
 import android.graphics.Point;
 import android.util.Log;
 import androidx.annotation.NonNull;
@@ -27,6 +26,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning;
 import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.common.InputImage;
 import pt.ulisboa.tecnico.trustglass.GraphicOverlay;
+import pt.ulisboa.tecnico.trustglass.java.LivePreviewActivity;
 import pt.ulisboa.tecnico.trustglass.java.VisionProcessorBase;
 import java.util.List;
 
@@ -37,8 +37,11 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
 
   private final BarcodeScanner barcodeScanner;
 
-  public BarcodeScannerProcessor(Context context) {
+  private LivePreviewActivity livePreviewContext;
+
+  public BarcodeScannerProcessor(LivePreviewActivity context) {
     super(context);
+    livePreviewContext = context;
     // Note that if you know which format of barcode your app is dealing with, detection will be
     // faster to specify the supported barcode formats one by one, e.g.
     BarcodeScannerOptions option = new BarcodeScannerOptions.Builder()
@@ -66,8 +69,9 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
     }
     for (int i = 0; i < barcodes.size(); ++i) {
       Barcode barcode = barcodes.get(i);
-      graphicOverlay.add(new BarcodeGraphic(graphicOverlay, barcode));
       logExtrasForTesting(barcode);
+
+      livePreviewContext.displayQRText(barcode.getDisplayValue());
     }
   }
 

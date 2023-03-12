@@ -202,4 +202,10 @@ public final class LivePreviewActivity extends AppCompatActivity
       cameraSource.release();
     }
   }
+
+  public void displayQRText(String qrText) {
+    Intent qrTextIntent = new Intent(this, QRTextActivity.class);
+    qrTextIntent.putExtra("qrText", qrText);
+    startActivity(qrTextIntent);
+  }
 }

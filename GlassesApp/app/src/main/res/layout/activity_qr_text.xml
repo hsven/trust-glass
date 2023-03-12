@@ -9,5 +9,7 @@
         android:layout_height="match_parent"
         android:text="TextView"
         android:textAlignment="center"
-        android:textSize="60sp" />
+        android:textSize="30sp"
+        android:scrollbars = "vertical"
+        />
 </androidx.constraintlayout.widget.ConstraintLayout>

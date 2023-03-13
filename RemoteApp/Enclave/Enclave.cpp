@@ -35,6 +35,7 @@
 #include <stdio.h> /* vsnprintf */
 #include <string>
 
+EVP_PKEY *pkey = NULL;
 
 /* 
  * printf: 
@@ -47,6 +48,7 @@ int printf(const char* fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
+    ocall_debug_print(buf);
     // ocall_print_string(buf);
     // ocall_print_qr_code(buf);
     return (int)strnlen(buf, BUFSIZ - 1) + 1;
@@ -88,7 +90,7 @@ void ecall_receive_input(const char* in) {
     //Prints for DEBUG purposes
     printf("Message: %s\n", response->message.c_str());
     printf("Signature: %s\n", response->digitalSignature.c_str());
-    printf("Fresh Token: %s", response->freshnessToken.c_str());
+    printf("Fresh Token: %s\n", response->freshnessToken.c_str());
 
 
     // *out = response->generate_final();
@@ -104,5 +106,14 @@ void ecall_receive_input(const char* in) {
 
 void ecall_setup_enclave(void) {
     //Prepare keys
+    const char* hello = "TEST!";
+    printf("%s\n", hello);
+    generate_ec_key_pair(&pkey);
+    
+
+    unsigned char* pubKey = get_public_key(pkey);
+    const char* b64PubKey = convert_to_base64(pubKey, strlen((char*) pubKey));
+    pkey = NULL;
+    ocall_send_response(b64PubKey, strlen(b64PubKey));
 }
 

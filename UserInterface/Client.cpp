@@ -27,6 +27,8 @@ static const int server_port = 4433;
 #define true            1
 #define false           0
 
+static std::string receive_message(SSL *ssl);
+static void display_message(std::string response);
 static void toSvgFile(std::string dest, const qrcodegen::QrCode &qr, int border);
 static std::string toSvgString(const qrcodegen::QrCode &qr, int border);
 static void printQr(const qrcodegen::QrCode &qr);
@@ -124,14 +126,11 @@ int main(int argc, char **argv)
     size_t txcap = 0;
     int txlen;
 
-    char rxbuf[128];
-    size_t rxcap = sizeof(rxbuf);
-    int rxlen;
-
     char *rem_server_ip = NULL;
 
     struct sockaddr_in addr;
     unsigned int addr_len = sizeof(addr);
+    std::string response = std::string("");
 
     /* Splash */
     printf("\nsslecho : Simple Echo Client/Server (OpenSSL 3.0.1-dev) : %s : %s\n\n", __DATE__,
@@ -186,6 +185,11 @@ int main(int argc, char **argv)
 
         printf("SSL connection to server successful\n\n");
 
+        /* Initial handshake */
+        printf("Received: \n");
+        response = receive_message(ssl);
+        display_message(response);
+
         /* Loop to send input from keyboard */
         while (true) {
             /* Get a line of input */
@@ -207,28 +211,10 @@ int main(int argc, char **argv)
 
             /* Wait for the echo */
             printf("Received: \n");
-            std::string response = std::string("");
-            do {
-                rxlen = SSL_read(ssl, rxbuf, rxcap);
+            response = receive_message(ssl);
 
-                if (rxlen <= 0) {
-                    printf("Server closed connection\n");
-                    ERR_print_errors_fp(stderr);
-                    break;
-                } else {
-                    /* Show it */
-                    rxbuf[rxlen] = 0;
-                    response.append(rxbuf);
-                    // printf("%s", rxbuf);
-                }
-            } while(strstr(rxbuf, "END") == NULL);
+            display_message(response);
             printf("--End--\n");
-
-            qrcodegen::QrCode::Ecc errCorLvl = qrcodegen::QrCode::Ecc::LOW;  // Error correction level
-            // Make and print the QR Code symbol
-            qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(response.c_str(), errCorLvl);
-            printQr(qr);
-            toSvgFile("../qrCode.svg", qr, 1);
 
         }
         printf("Client exiting...\n");
@@ -264,6 +250,38 @@ int main(int argc, char **argv)
 
 
 /*---- Utilities ----*/
+static std::string receive_message(SSL *ssl) {
+    std::string response = "";
+    char rxbuf[128];
+    size_t rxcap = sizeof(rxbuf);
+    int rxlen;
+
+    // printf("Received: \n");
+    do {
+        rxlen = SSL_read(ssl, rxbuf, rxcap);
+
+        if (rxlen <= 0) {
+            printf("Server closed connection\n");
+            ERR_print_errors_fp(stderr);
+            break;
+        } else {
+            /* Show it */
+            rxbuf[rxlen] = 0;
+            response.append(rxbuf);
+        }
+    } while(strstr(rxbuf, "END") == NULL);
+
+    //Remove the END sufix from the response
+    return response.substr(0, response.length() - 3);
+}
+
+static void display_message(std::string response) {
+    qrcodegen::QrCode::Ecc errCorLvl = qrcodegen::QrCode::Ecc::LOW;  // Error correction level
+    // Make and print the QR Code symbol
+    qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(response.c_str(), errCorLvl);
+    printQr(qr);
+    toSvgFile("../qrCode.svg", qr, 1);
+}
 
 static void toSvgFile(std::string dest, const qrcodegen::QrCode &qr, int border) {
     std::string svgString = toSvgString(qr, border);

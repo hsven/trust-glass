@@ -8,12 +8,15 @@
 SSL* ssl = NULL;
 
 /* OCall functions */
+void ocall_debug_print(const char *str) {
+    printf("%s", str);
+}
+
 void ocall_print_string(const char *str)
 {
     /* Proxy/Bridge will check the length and null-terminate 
      * the input string to prevent buffer overflow. 
      */
-    printf("%s", str);
 	if (SSL_write(ssl, str, strlen(str)) <= 0) {
 		ERR_print_errors_fp(stderr);
 	}

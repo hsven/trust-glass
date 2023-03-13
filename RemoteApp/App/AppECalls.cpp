@@ -34,3 +34,11 @@ void ecall_send_key() {
     // if (ret != SGX_SUCCESS)
     //     abort();
 }
+
+void ecall_handshake() {
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    ret = ecall_setup_enclave(global_eid);
+    if (ret != SGX_SUCCESS)
+        abort();
+}

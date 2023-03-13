@@ -3,8 +3,7 @@
 // #include <string>
 
 
-
-char *base64(const unsigned char *input, int length) {
+char* convert_to_base64(const unsigned char *input, int length) {
   const auto pl = 4*((length+2)/3);
   auto output = reinterpret_cast<char *>(calloc(pl+1, 1)); //+1 for the terminating null that EVP_EncodeBlock adds on
   const auto ol = EVP_EncodeBlock(reinterpret_cast<unsigned char *>(output), input, length);
@@ -141,21 +140,78 @@ std::string sign_message(std::string message) {
 
 	EVP_MD_CTX_free(mdctx);
     // printf("%d", digest_len);
-    return base64(digest_value, digest_len);
-    // printf("%s", b64String);
-    // std::string ret;
-    // ret.reserve(*digest_len * 2);
-    // for(const unsigned char *ptr = digest; ptr < digest+*digest_len; ++ptr) {
-    //     char buf[3];
-    //     sprintf(buf, "%02x", (*ptr)&0xff);
-    //     ret += buf;
-    // }
-    // printf("%s", b64String);
-    // for (size_t i = 0; i < *digest_len; i++)
-    // {
-    //     // auto c = digest[i];
-    //     printf("%.2x", (const char*) digest[i]);
-    // }
-    
-    // printf("%.2x", (const char*) digest);
+    return convert_to_base64(digest_value, digest_len);
+}
+
+// As seen in https://wiki.openssl.org/index.php/Elliptic_Curve_Diffie_Hellman
+bool generate_ec_key_pair(EVP_PKEY **pkey) {
+    EVP_PKEY_CTX *pctx, *kctx;
+	// EVP_PKEY_CTX *ctx;
+	unsigned char *secret;
+    EVP_PKEY *keyPair = NULL;
+	EVP_PKEY *peerkey, *params = NULL;
+	/* NB: assumes pkey, peerkey have been already set up */
+
+	/* Create the context for parameter generation */
+	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) {
+        printf("EVP_PKEY_CTX_new_id: %ld\n", ERR_get_error());
+        return false;
+    }
+
+	/* Initialise the parameter generation */
+	if(1 != EVP_PKEY_paramgen_init(pctx)) {
+        printf("EVP_PKEY_paramgen_init: %ld\n", ERR_get_error());
+        return false;
+    }
+
+	/* We're going to use the ANSI X9.62 Prime 256v1 curve */
+	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) {
+        printf("EVP_PKEY_CTX_set_ec_paramgen_curve_nid: %ld\n", ERR_get_error());
+        return false;
+    }
+
+	/* Create the parameter object params */
+	if (!EVP_PKEY_paramgen(pctx, &params)) {
+        printf("EVP_PKEY_paramgen: %ld\n", ERR_get_error());
+        return false;
+    }
+
+	/* Create the context for the key generation */
+	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) {
+        printf("EVP_PKEY_CTX_new: %ld\n", ERR_get_error());
+        return false;
+    }
+
+	/* Generate the key */
+	if(1 != EVP_PKEY_keygen_init(kctx)) {
+        printf("EVP_PKEY_keygen_init: %ld\n", ERR_get_error());
+        return false;
+    }
+	if (1 != EVP_PKEY_keygen(kctx, &keyPair)) {
+        printf("EVP_PKEY_CTX_keygen: %ld\n", ERR_get_error());
+        return false;
+    }
+
+    // EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_CTX_free(pctx);
+    EVP_PKEY_CTX_free(kctx);
+    *pkey = keyPair;
+
+    return true;
+}
+
+unsigned char* get_public_key(EVP_PKEY *pkey) {
+    int len = i2d_PublicKey(pkey, NULL);
+    // evp_pkey.
+    unsigned char *buf = (unsigned char *) malloc (len + 1);
+    if (!buf)
+    {
+        //For some reason the usage of \n without an argument before is bad
+        printf("Failed in calling malloc()%c\n", ';');
+        return nullptr;
+    }
+    unsigned char *tbuf = buf;
+    i2d_PublicKey(pkey, &tbuf);
+
+    return tbuf;
 }

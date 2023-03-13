@@ -263,6 +263,8 @@ int SGX_CDECL main(int argc, char *argv[])
 
             printf("Client SSL connection accepted\n\n");
 
+            ecall_handshake();
+
             /* Echo loop */
             while (true) {
                 /* Get message from client; will fail if client closes connection */

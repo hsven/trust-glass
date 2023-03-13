@@ -72,6 +72,7 @@ enclave {
      *  [string]: specifies 'str' is a NULL terminated buffer.
      */
     untrusted {
+        void ocall_debug_print([in, string] const char *str);
         void ocall_print_string([in, string] const char *str);
         void ocall_print_qr_code([in, string] const char *message);
         void ocall_send_response([in, string] const char *message, size_t len);

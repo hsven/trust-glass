@@ -42,16 +42,23 @@ extern "C" {
 #endif
 
 struct ResponseMessage {
+    std::string header;
     std::string message;
     std::string digitalSignature;
     std::string freshnessToken;
+    std::string finalMessage = "";
 
     char* generate_final() {
-        return (message+digitalSignature+freshnessToken).data();
+        finalMessage = "{\"header\":\"" + header + 
+            "\",\"msg\":\"" + message + 
+            "\",\"sig\":\"" + digitalSignature +
+            "\",\"fresh\":\"" + freshnessToken +
+            "\"}";
+        return finalMessage.data();
     }
 
     size_t total_length() {
-        return (message+digitalSignature+freshnessToken).size();
+        return finalMessage.size();
     }
 };
 

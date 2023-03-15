@@ -35,7 +35,8 @@
 #include <stdio.h> /* vsnprintf */
 #include <string>
 
-EVP_PKEY *pkey = NULL;
+EC_KEY *keyPair = NULL;
+EC_POINT *peerPoint = NULL;
 
 /* 
  * printf: 
@@ -95,7 +96,8 @@ void ecall_receive_input(const char* in) {
 
     // *out = response->generate_final();
     // ocall_print_qr_code(response->generate_final());
-    ocall_send_response(response->generate_final(), response->total_length());
+    char* finalMsg = response->generate_final();
+    ocall_send_response(finalMsg, strlen(finalMsg));
 
     // return res;
 }
@@ -104,16 +106,60 @@ void ecall_receive_input(const char* in) {
 //     printf("%s", in);
 // }
 
-void ecall_setup_enclave(void) {
+void ecall_setup_enclave_phase1(void) {
     //Prepare keys
     const char* hello = "TEST!";
     printf("%s\n", hello);
-    generate_ec_key_pair(&pkey);
+
+    EC_GROUP *ecgroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if(!generate_ec_key_pair(&keyPair)) {
+        printf("%s\n", "Error generating keypair");
+        return;
+    }
     
 
-    unsigned char* pubKey = get_public_key(pkey);
-    const char* b64PubKey = convert_to_base64(pubKey, strlen((char*) pubKey));
-    pkey = NULL;
-    ocall_send_response(b64PubKey, strlen(b64PubKey));
+    EC_POINT const* pub = EC_KEY_get0_public_key(keyPair);
+    if(!pub)
+    {
+        EC_KEY_free(keyPair);
+        return;
+    }
+    BN_CTX *ctx;
+    ctx = BN_CTX_new();
+    const unsigned char* result = NULL;
+    result = (const unsigned char*) EC_POINT_point2hex(ecgroup, pub, POINT_CONVERSION_UNCOMPRESSED, ctx);
+    printf("POINT: %s\n", result);
+    const char* b64PubKey = convert_to_base64(result, strlen((char*) result));
+    printf("KEY: %s\n", b64PubKey);
+
+    //Generate Response Message
+    ResponseMessage* response = new ResponseMessage();
+    response->header = "HANDSHAKE";
+
+    //Prepare Response
+    response->message = b64PubKey;
+
+    //Create freshness token
+    response->freshnessToken = "";
+
+    //Sign message
+    response->digitalSignature = "";
+
+    char* finalMsg = response->generate_final();
+    ocall_send_response(finalMsg, strlen(finalMsg));
 }
 
+void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
+    //For some reason the string enters with an extra, unwanted, character
+    printf("KEY: %s\n", encodedPeerKey);
+    unsigned char* decodedPeerKey = decode_from_base64(encodedPeerKey, strlen(encodedPeerKey));
+    printf("DECODED KEY: %s\n", decodedPeerKey);
+    peerPoint = extract_ec_point((char*) decodedPeerKey);
+    if (!peerPoint) {
+        printf("%s\n", "Failed to create the EC_POINT for the peer key");
+    }
+    size_t secretLen;
+    unsigned char* secretKey = derive_shared_key(keyPair, peerPoint, &secretLen);
+
+    printf("SECRET KEY: %s\nLEN: %d", convert_to_base64(secretKey, secretLen), secretLen);
+}

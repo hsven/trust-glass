@@ -35,10 +35,18 @@ void ecall_send_key() {
     //     abort();
 }
 
-void ecall_handshake() {
+void ecall_handshake_phase1() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    ret = ecall_setup_enclave(global_eid);
+    ret = ecall_setup_enclave_phase1(global_eid);
+    if (ret != SGX_SUCCESS)
+        abort();
+}
+
+void ecall_handshake_phase2(std::string in) {
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    ret = ecall_setup_enclave_phase2(global_eid, in.c_str());
     if (ret != SGX_SUCCESS)
         abort();
 }

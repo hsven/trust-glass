@@ -3,15 +3,25 @@
 // #include <string>
 
 
+
 char* convert_to_base64(const unsigned char *input, int length) {
-  const auto pl = 4*((length+2)/3);
-  auto output = reinterpret_cast<char *>(calloc(pl+1, 1)); //+1 for the terminating null that EVP_EncodeBlock adds on
-  const auto ol = EVP_EncodeBlock(reinterpret_cast<unsigned char *>(output), input, length);
-  if (pl != ol) { return NULL; }
-  return output;
+    const auto pl = 4*((length+2)/3);
+    auto output = reinterpret_cast<char *>(calloc(pl+1, 1)); //+1 for the terminating null that EVP_EncodeBlock adds on
+    const auto ol = EVP_EncodeBlock(reinterpret_cast<unsigned char *>(output), input, length);
+    if (pl != ol) { return NULL; }
+    return output;
 }
 
-
+unsigned char* decode_from_base64(const char* input, int length) {
+    const auto pl = 3*length/4;
+    auto output = reinterpret_cast<unsigned char *>(calloc(pl+1, 1));
+    const auto ol = EVP_DecodeBlock(output, reinterpret_cast<const unsigned char *>(input), length);
+    if (pl != ol) {
+        printf("EVP_DecodeBlock: %ld\n", ERR_get_error());
+        return NULL;
+    }
+    return output;
+}
 
 
 //Taken from intel sgxssl test app
@@ -144,59 +154,30 @@ std::string sign_message(std::string message) {
 }
 
 // As seen in https://wiki.openssl.org/index.php/Elliptic_Curve_Diffie_Hellman
-bool generate_ec_key_pair(EVP_PKEY **pkey) {
+bool generate_ec_key_pair(EC_KEY **ecKey) {
     EVP_PKEY_CTX *pctx, *kctx;
 	// EVP_PKEY_CTX *ctx;
 	unsigned char *secret;
     EVP_PKEY *keyPair = NULL;
 	EVP_PKEY *peerkey, *params = NULL;
-	/* NB: assumes pkey, peerkey have been already set up */
 
-	/* Create the context for parameter generation */
-	if(NULL == (pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL))) {
-        printf("EVP_PKEY_CTX_new_id: %ld\n", ERR_get_error());
+    EC_KEY *key;
+
+    if(NULL == (*ecKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1))) {
+        printf("EC_KEY_new_by_curve_name: %ld\n", ERR_get_error());
         return false;
     }
 
-	/* Initialise the parameter generation */
-	if(1 != EVP_PKEY_paramgen_init(pctx)) {
-        printf("EVP_PKEY_paramgen_init: %ld\n", ERR_get_error());
+    if(1 != EC_KEY_generate_key(*ecKey)) {
+        printf("EC_KEY_generate_key: %ld\n", ERR_get_error());
+        EC_KEY_free(*ecKey);
         return false;
     }
 
-	/* We're going to use the ANSI X9.62 Prime 256v1 curve */
-	if(1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1)) {
-        printf("EVP_PKEY_CTX_set_ec_paramgen_curve_nid: %ld\n", ERR_get_error());
-        return false;
-    }
+    
 
-	/* Create the parameter object params */
-	if (!EVP_PKEY_paramgen(pctx, &params)) {
-        printf("EVP_PKEY_paramgen: %ld\n", ERR_get_error());
-        return false;
-    }
 
-	/* Create the context for the key generation */
-	if(NULL == (kctx = EVP_PKEY_CTX_new(params, NULL))) {
-        printf("EVP_PKEY_CTX_new: %ld\n", ERR_get_error());
-        return false;
-    }
-
-	/* Generate the key */
-	if(1 != EVP_PKEY_keygen_init(kctx)) {
-        printf("EVP_PKEY_keygen_init: %ld\n", ERR_get_error());
-        return false;
-    }
-	if (1 != EVP_PKEY_keygen(kctx, &keyPair)) {
-        printf("EVP_PKEY_CTX_keygen: %ld\n", ERR_get_error());
-        return false;
-    }
-
-    // EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_CTX_free(pctx);
-    EVP_PKEY_CTX_free(kctx);
-    *pkey = keyPair;
-
+    
     return true;
 }
 
@@ -214,4 +195,54 @@ unsigned char* get_public_key(EVP_PKEY *pkey) {
     i2d_PublicKey(pkey, &tbuf);
 
     return tbuf;
+}
+
+EC_POINT* extract_ec_point(char* in) {
+    EC_GROUP *ecgroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    BN_CTX* ctx = BN_CTX_new();
+    EC_POINT* retPoint = NULL;
+    return EC_POINT_hex2point(ecgroup, in, retPoint, ctx);
+}
+
+EVP_PKEY* convert_to_PKEY(EC_POINT* point) {
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);;
+    // EC_POINT *p = EC_POINT_new(g);
+    EC_KEY* key = EC_KEY_new();
+    EVP_PKEY* finalKey = EVP_PKEY_new();
+    // error = EC_POINT_oct2point(g, p, tmpPubKey, sizeof(tmpPubKey), NULL);
+    if (1 != EC_KEY_set_group(key, group)) {
+        printf("EC_KEY_set_group: %ld\n", ERR_get_error());
+        return NULL;
+    }
+    if (1 != EC_KEY_set_public_key(key, point)) {
+        printf("EC_KEY_set_public_key: %ld\n", ERR_get_error());
+        return NULL;
+    }
+    if (1 != EVP_PKEY_set1_EC_KEY(finalKey, key)) {
+        printf("EVP_PKEY_set1_EC_KEY: %ld\n", ERR_get_error());
+        return NULL;
+    }
+    return finalKey;
+}
+
+unsigned char* derive_shared_key(EC_KEY* privKey, const EC_POINT* peerKey, size_t* secretLen){
+	int field_size;
+	unsigned char *secret;
+
+	field_size = EC_GROUP_get_degree(EC_KEY_get0_group(privKey));
+	*secretLen = (field_size + 7) / 8;
+
+	if (NULL == (secret = (unsigned char*) OPENSSL_malloc(*secretLen))) {
+		printf("Failed to allocate memory for secret");
+		return NULL;
+	}
+
+	*secretLen = ECDH_compute_key(secret, *secretLen,
+					peerKey, privKey, NULL);
+
+	if (*secretLen <= 0) {
+		OPENSSL_free(secret);
+		return NULL;
+	}
+	return secret;
 }

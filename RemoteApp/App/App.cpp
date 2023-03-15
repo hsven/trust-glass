@@ -179,6 +179,30 @@ int initialize_enclave(void)
 
 // }
 
+static std::string receive_message(SSL *ssl) {
+    std::string response = "";
+    char rxbuf[128];
+    size_t rxcap = sizeof(rxbuf);
+    int rxlen;
+
+    // printf("Received: \n");
+    do {
+        rxlen = SSL_read(ssl, rxbuf, rxcap);
+
+        if (rxlen <= 0) {
+            printf("Server closed connection\n");
+            ERR_print_errors_fp(stderr);
+            break;
+        } else {
+            /* Show it */
+            rxbuf[rxlen] = 0;
+            response.append(rxbuf);
+        }
+    } while(strstr(rxbuf, "END") == NULL);
+
+    //Remove the END sufix from the response
+    return response.substr(0, response.length() - 3);
+}
 
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[])
@@ -263,7 +287,11 @@ int SGX_CDECL main(int argc, char *argv[])
 
             printf("Client SSL connection accepted\n\n");
 
-            ecall_handshake();
+            ecall_handshake_phase1();
+            /* Get message from client; will fail if client closes connection */
+            std::string in = receive_message(ssl);
+
+            ecall_handshake_phase2(in);
 
             /* Echo loop */
             while (true) {

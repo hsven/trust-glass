@@ -42,9 +42,9 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
   private final LivePreviewActivity livePreviewContext;
   private EncryptionManager encryptionManager;
 
-  public BarcodeScannerProcessor(LivePreviewActivity context) {
+  public BarcodeScannerProcessor(LivePreviewActivity context, EncryptionManager encManager) {
     super(context);
-    encryptionManager = new EncryptionManager();
+    encryptionManager = encManager;
 
     livePreviewContext = context;
     // Note that if you know which format of barcode your app is dealing with, detection will be

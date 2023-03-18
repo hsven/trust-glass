@@ -42,6 +42,7 @@ import pt.ulisboa.tecnico.trustglass.CameraSourcePreview;
 import pt.ulisboa.tecnico.trustglass.GraphicOverlay;
 import pt.ulisboa.tecnico.trustglass.R;
 import pt.ulisboa.tecnico.trustglass.java.barcodescanner.BarcodeScannerProcessor;
+import pt.ulisboa.tecnico.trustglass.java.encryption.EncryptionManager;
 import pt.ulisboa.tecnico.trustglass.preference.SettingsActivity;
 
 /** Live preview demo for ML Kit APIs. */
@@ -58,10 +59,13 @@ public final class LivePreviewActivity extends AppCompatActivity
   private GraphicOverlay graphicOverlay;
   private String selectedModel = BARCODE_SCANNING;
 
+  private EncryptionManager encryptionManager;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     Log.d(TAG, "onCreate");
+    encryptionManager = new EncryptionManager();
 
     setContentView(R.layout.activity_vision_live_preview);
 
@@ -139,7 +143,7 @@ public final class LivePreviewActivity extends AppCompatActivity
 
     try {
       Log.i(TAG, "Using Barcode Detector Processor");
-      cameraSource.setMachineLearningFrameProcessor(new BarcodeScannerProcessor(this));
+      cameraSource.setMachineLearningFrameProcessor(new BarcodeScannerProcessor(this, encryptionManager));
 //      break;
 //      switch (model) {
 //        case BARCODE_SCANNING:

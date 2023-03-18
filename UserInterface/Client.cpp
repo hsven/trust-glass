@@ -199,6 +199,10 @@ int main(int argc, char **argv)
             ERR_print_errors_fp(stderr);
            goto exit;
         }
+        //Receive welcome message
+        response = receive_message(ssl);
+        display_message(response);
+
         /* Loop to send input from keyboard */
         while (true) {
             /* Get a line of input */

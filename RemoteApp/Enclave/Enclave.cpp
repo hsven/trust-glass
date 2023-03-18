@@ -64,6 +64,23 @@ std::string prepare_response(std::string in) {
     return response + in;
 }
 
+ResponseMessage* create_response(std::string headerMsg, std::string mainMsg) {
+    //Generate Response Message
+    ResponseMessage* response = new ResponseMessage();
+    response->header = headerMsg;
+
+    //Prepare Response
+    response->message = mainMsg;
+
+    //Create freshness token
+    response->freshnessToken = "";
+
+    //Sign message
+    response->digitalSignature = "";
+
+    return response;
+}
+
 
 
 void ecall_hello_world(void)
@@ -133,18 +150,7 @@ void ecall_setup_enclave_phase1(void) {
     printf("KEY: %s\n", b64PubKey);
 
     //Generate Response Message
-    ResponseMessage* response = new ResponseMessage();
-    response->header = "HANDSHAKE";
-
-    //Prepare Response
-    response->message = b64PubKey;
-
-    //Create freshness token
-    response->freshnessToken = "";
-
-    //Sign message
-    response->digitalSignature = "";
-
+    ResponseMessage* response = create_response("HANDSHAKE", b64PubKey);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }
@@ -160,6 +166,16 @@ void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
     }
     size_t secretLen;
     unsigned char* secretKey = derive_shared_key(keyPair, peerPoint, &secretLen);
+    secretKey[secretLen] = '\0';
 
-    printf("SECRET KEY: %s\nLEN: %d", convert_to_base64(secretKey, secretLen), secretLen);
+    printf("SECRET KEY: %s\nKey Length: %d\nRegistered Length: %d\n\n", convert_to_base64(secretKey, secretLen), secretLen, strlen((const char*) secretKey));
+
+    //Generate Response Message, with the message encrypted with the derived secret key
+    //TODO: array size shouldn't be hardcoded
+    unsigned char encryptedWelcomeMsg[256];
+    int msgLen = aes_encryption((unsigned char*) "Welcome!", strlen("Welcome!"), secretKey, encryptedWelcomeMsg);
+
+    ResponseMessage* response = create_response("", convert_to_base64(encryptedWelcomeMsg, msgLen));
+    char* finalMsg = response->generate_final();
+    ocall_send_response(finalMsg, strlen(finalMsg));
 }

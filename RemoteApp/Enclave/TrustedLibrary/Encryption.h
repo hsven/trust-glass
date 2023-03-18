@@ -19,3 +19,4 @@ unsigned char* get_public_key(EVP_PKEY *pkey);
 EC_POINT* extract_ec_point(char* in);
 EVP_PKEY* convert_to_PKEY(EC_POINT* point);
 unsigned char* derive_shared_key(EC_KEY* privKey, const EC_POINT* peerKey, size_t* secretLen);
+int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText);

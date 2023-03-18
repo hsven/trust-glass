@@ -246,3 +246,57 @@ unsigned char* derive_shared_key(EC_KEY* privKey, const EC_POINT* peerKey, size_
 	}
 	return secret;
 }
+
+//Taken from https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
+int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText) {
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int ciphertext_len;
+
+    // A 128 bit IV
+    // TODO: Remove this, it should not be hardcoded
+    unsigned char *iv = (unsigned char *)"0123456789012345";
+
+    /* Create and initialise the context */
+    if(!(ctx = EVP_CIPHER_CTX_new())) {
+        printf("EVP_CIPHER_CTX_new: %ld\n", ERR_get_error());
+        return -1;
+    }
+
+    /*
+     * Initialise the encryption operation. IMPORTANT - ensure you use a key
+     * and IV size appropriate for your cipher
+     * In this example we are using 256 bit AES (i.e. a 256 bit key). The
+     * IV size for *most* modes is the same as the block size. For AES this
+     * is 128 bits
+     */
+    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
+        printf("EVP_EncryptInit_ex: %ld\n", ERR_get_error());
+        return -1;
+    }
+
+    /*
+     * Provide the message to be encrypted, and obtain the encrypted output.
+     * EVP_EncryptUpdate can be called multiple times if necessary
+     */
+    if(1 != EVP_EncryptUpdate(ctx, cipherText, &len, plainText, plainTextLen)) {
+        printf("EVP_EncryptUpdate: %ld\n", ERR_get_error());
+        return -1;
+    }
+    ciphertext_len = len;
+
+    /*
+     * Finalise the encryption. Further ciphertext bytes may be written at
+     * this stage.
+     */
+    if(1 != EVP_EncryptFinal_ex(ctx, cipherText + len, &len)) {
+        printf("EVP_EncryptFinal_ex: %ld\n", ERR_get_error());
+        return -1;
+    }
+    ciphertext_len += len;
+
+    /* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+    return ciphertext_len;
+}

@@ -56,6 +56,8 @@ dependencies {
 
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.5.31'
     implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.bouncycastle:bcpkix-jdk15on:1.67'
 
     // Barcode model
     implementation 'com.google.mlkit:barcode-scanning:17.0.3'
@@ -64,7 +66,7 @@ dependencies {
 
     // -------------------------------------------------------
 
-    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.google.guava:guava:27.1-android'
 
     // For how to setup gradle dependencies in Android X, see:

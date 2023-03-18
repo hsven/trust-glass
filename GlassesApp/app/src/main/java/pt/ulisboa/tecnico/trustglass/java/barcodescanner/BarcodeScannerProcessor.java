@@ -28,6 +28,8 @@ import com.google.mlkit.vision.common.InputImage;
 import pt.ulisboa.tecnico.trustglass.GraphicOverlay;
 import pt.ulisboa.tecnico.trustglass.java.LivePreviewActivity;
 import pt.ulisboa.tecnico.trustglass.java.VisionProcessorBase;
+import pt.ulisboa.tecnico.trustglass.java.encryption.EncryptionManager;
+
 import java.util.List;
 
 /** Barcode Detector Demo. */
@@ -37,10 +39,13 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
 
   private final BarcodeScanner barcodeScanner;
 
-  private LivePreviewActivity livePreviewContext;
+  private final LivePreviewActivity livePreviewContext;
+  private EncryptionManager encryptionManager;
 
   public BarcodeScannerProcessor(LivePreviewActivity context) {
     super(context);
+    encryptionManager = new EncryptionManager();
+
     livePreviewContext = context;
     // Note that if you know which format of barcode your app is dealing with, detection will be
     // faster to specify the supported barcode formats one by one, e.g.
@@ -67,11 +72,13 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
     if (barcodes.isEmpty()) {
       Log.v(MANUAL_TESTING_LOG, "No barcode has been detected");
     }
+    Log.d("Count", String.valueOf(barcodes.size()));
     for (int i = 0; i < barcodes.size(); ++i) {
       Barcode barcode = barcodes.get(i);
       logExtrasForTesting(barcode);
 
-      livePreviewContext.displayQRText(barcode.getDisplayValue());
+      String msgToDisplay = encryptionManager.processMessage(barcode.getDisplayValue());
+      livePreviewContext.displayQRText(msgToDisplay);
     }
   }
 

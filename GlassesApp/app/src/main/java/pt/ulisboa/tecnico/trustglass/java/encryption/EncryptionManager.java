@@ -6,6 +6,7 @@ import android.util.Log;
 import com.google.gson.Gson;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.AlgorithmParameters;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -24,8 +25,13 @@ import java.security.spec.ECPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 class Message {
     public String header;
@@ -73,13 +79,14 @@ public class EncryptionManager {
         }
 
         //Decrypt
+        String decryptedMsg = AESDecrypt(msg.msg);
 
         //Check authenticity
 
         //Check freshness
 
         //Display message
-        return msg.msg;
+        return decryptedMsg;
     }
 
     public KeyPair generateECKeyPair() {
@@ -137,6 +144,32 @@ public class EncryptionManager {
             return key;
         } catch (InvalidKeyException | NoSuchAlgorithmException e) {
             return null;
+        }
+    }
+
+    private String AESDecrypt(String cipherText) {
+        // A 128 bit IV
+        // TODO: Remove this, it should not be hardcoded
+        byte[] iv = "0123456789012345".getBytes(StandardCharsets.UTF_8);
+        IvParameterSpec ivSpec = new IvParameterSpec(iv);
+
+        try {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, symKey, ivSpec);
+            byte[] plainText = cipher.doFinal(Base64.decode(cipherText, cipherText.length()));
+            return new String(plainText);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalBlockSizeException e) {
+            throw new RuntimeException(e);
+        } catch (BadPaddingException e) {
+            throw new RuntimeException(e);
         }
     }
 }

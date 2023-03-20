@@ -65,7 +65,7 @@ public final class LivePreviewActivity extends AppCompatActivity
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     Log.d(TAG, "onCreate");
-    encryptionManager = new EncryptionManager();
+    encryptionManager = new EncryptionManager(this);
 
     setContentView(R.layout.activity_vision_live_preview);
 

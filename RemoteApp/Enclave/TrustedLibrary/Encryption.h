@@ -7,13 +7,14 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/pem.h>
 // #include <openssl/sha
 #include <string>
 
-char* convert_to_base64(const unsigned char *input, int length);
-unsigned char* decode_from_base64(const char* input, int length);
+char* base64_encode(const unsigned char *input, int length);
+unsigned char* base64_decode(const char* input, int length);
 void generate_rsa_key(void);
-std::string sign_message(std::string message); 
+std::string sign_message(std::string message, RSA* longTermKey);
 bool generate_ec_key_pair(EC_KEY **ecKey);
 unsigned char* get_public_key(EVP_PKEY *pkey);
 EC_POINT* extract_ec_point(char* in);

@@ -37,6 +37,10 @@
 
 EC_KEY *keyPair = NULL;
 EC_POINT *peerPoint = NULL;
+unsigned char* secretKey = NULL;
+
+RSA* longTermKeyPair = NULL;
+RSA* longTermPeerKey = NULL;
 
 /* 
  * printf: 
@@ -64,7 +68,7 @@ std::string prepare_response(std::string in) {
     return response + in;
 }
 
-ResponseMessage* create_response(std::string headerMsg, std::string mainMsg) {
+ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
     //Generate Response Message
     ResponseMessage* response = new ResponseMessage();
     response->header = headerMsg;
@@ -72,11 +76,20 @@ ResponseMessage* create_response(std::string headerMsg, std::string mainMsg) {
     //Prepare Response
     response->message = mainMsg;
 
-    //Create freshness token
-    response->freshnessToken = "";
+    //If message requires security properties
+    if (withSecure) {
+        //Encrypt response
+        //TODO: Message size should not be hardcoded
+        unsigned char encryptedMessage[256];
+        int msgLen = aes_encryption((unsigned char*) mainMsg.data(), mainMsg.length(), secretKey, encryptedMessage);
+        response->message = base64_encode(encryptedMessage, msgLen);
 
-    //Sign message
-    response->digitalSignature = "";
+        //Create freshness token
+        response->freshnessToken = "";
+
+        //Sign message
+        response->digitalSignature = sign_message(mainMsg, longTermKeyPair);
+    }
 
     return response;
 }
@@ -102,7 +115,7 @@ void ecall_receive_input(const char* in) {
     response->freshnessToken = "";
 
     //Sign message
-    response->digitalSignature = sign_message(response->message);
+    response->digitalSignature = sign_message(response->message, longTermKeyPair);
 
     
     //Prints for DEBUG purposes
@@ -119,9 +132,33 @@ void ecall_receive_input(const char* in) {
     // return res;
 }
 
-// void ecall_receive_shared_key(const char* in) {
-//     printf("%s", in);
-// }
+void ecall_receive_key_pair(const char* in) {
+    printf("%s", in);
+
+    BIO* bo = BIO_new(BIO_s_mem());
+    BIO_write(bo, in, strlen(in));
+    
+    if (PEM_read_bio_RSAPrivateKey(bo, &longTermKeyPair, NULL, NULL) == NULL){
+        printf("PEM_read_bio_RSAPrivateKey Error: %ld\n",  ERR_get_error());
+        return;
+    }
+
+    BIO_free(bo);
+}
+
+void ecall_receive_peer_key(const char* in) {
+    printf("%s", in);
+
+    BIO* bo = BIO_new(BIO_s_mem());
+    BIO_write(bo, in, strlen(in));
+    
+    if (PEM_read_bio_RSA_PUBKEY(bo, &longTermPeerKey, NULL, NULL) == NULL){
+        printf("PEM_read_RSA_PUBKEY Error: %ld\n",  ERR_get_error());
+        return;
+    }
+
+    BIO_free(bo);
+}
 
 void ecall_setup_enclave_phase1(void) {
     //Prepare keys
@@ -146,11 +183,11 @@ void ecall_setup_enclave_phase1(void) {
     const unsigned char* result = NULL;
     result = (const unsigned char*) EC_POINT_point2hex(ecgroup, pub, POINT_CONVERSION_UNCOMPRESSED, ctx);
     printf("POINT: %s\n", result);
-    const char* b64PubKey = convert_to_base64(result, strlen((char*) result));
+    const char* b64PubKey = base64_encode(result, strlen((char*) result));
     printf("KEY: %s\n", b64PubKey);
 
     //Generate Response Message
-    ResponseMessage* response = create_response("HANDSHAKE", b64PubKey);
+    ResponseMessage* response = create_response("HANDSHAKE", b64PubKey, false);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }
@@ -158,24 +195,20 @@ void ecall_setup_enclave_phase1(void) {
 void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
     //For some reason the string enters with an extra, unwanted, character
     printf("KEY: %s\n", encodedPeerKey);
-    unsigned char* decodedPeerKey = decode_from_base64(encodedPeerKey, strlen(encodedPeerKey));
+    unsigned char* decodedPeerKey = base64_decode(encodedPeerKey, strlen(encodedPeerKey));
     printf("DECODED KEY: %s\n", decodedPeerKey);
     peerPoint = extract_ec_point((char*) decodedPeerKey);
     if (!peerPoint) {
         printf("%s\n", "Failed to create the EC_POINT for the peer key");
     }
     size_t secretLen;
-    unsigned char* secretKey = derive_shared_key(keyPair, peerPoint, &secretLen);
+    secretKey = derive_shared_key(keyPair, peerPoint, &secretLen);
     secretKey[secretLen] = '\0';
 
-    printf("SECRET KEY: %s\nKey Length: %d\nRegistered Length: %d\n\n", convert_to_base64(secretKey, secretLen), secretLen, strlen((const char*) secretKey));
+    printf("SECRET KEY: %s\nKey Length: %d\nRegistered Length: %d\n\n", base64_encode(secretKey, secretLen), secretLen, strlen((const char*) secretKey));
 
-    //Generate Response Message, with the message encrypted with the derived secret key
-    //TODO: array size shouldn't be hardcoded
-    unsigned char encryptedWelcomeMsg[256];
-    int msgLen = aes_encryption((unsigned char*) "Welcome!", strlen("Welcome!"), secretKey, encryptedWelcomeMsg);
-
-    ResponseMessage* response = create_response("", convert_to_base64(encryptedWelcomeMsg, msgLen));
+    //Generate Response Message
+    ResponseMessage* response = create_response("", "Welcome!", true);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }

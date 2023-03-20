@@ -1,6 +1,7 @@
 #include "sgx_urts.h"
 #include "Enclave_u.h"
 #include <string>
+#include <fstream>
 
 sgx_enclave_id_t global_eid = 0;
 
@@ -26,13 +27,23 @@ void ecall_send_input(std::string in) {
 void ecall_send_key() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     //TODO: Remove hardcoded key
-    std::string tempKey = "n8lD7d1jI96cLSxjP4UI7ywGRW0PXKZHAx6dZJGMUCQ=";
 
-    // std::string message = rsaEncrypt(rsaEncrypt(tempKey, ""), "");
+    std::ifstream teeKey("TEEKeyPair.pem");
+    std::string teeKeyContent( (std::istreambuf_iterator<char>(teeKey) ),
+                         (std::istreambuf_iterator<char>()       ) );
 
-    // ret = ecall_receive_shared_key(global_eid, tempKey.c_str());
-    // if (ret != SGX_SUCCESS)
-    //     abort();
+    ret = ecall_receive_key_pair(global_eid, teeKeyContent.c_str());
+    if (ret != SGX_SUCCESS)
+        abort();
+
+    std::ifstream glassKey("GlassPubKey.pem");
+    std::string glassKeyContent( (std::istreambuf_iterator<char>(glassKey) ),
+             (std::istreambuf_iterator<char>()       ) );
+    ret = ecall_receive_peer_key(global_eid, glassKeyContent.c_str());
+    if (ret != SGX_SUCCESS)
+        abort();
+
+
 }
 
 void ecall_handshake_phase1() {

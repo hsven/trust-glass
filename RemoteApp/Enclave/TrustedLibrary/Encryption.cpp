@@ -4,7 +4,7 @@
 
 
 
-char* convert_to_base64(const unsigned char *input, int length) {
+char* base64_encode(const unsigned char *input, int length) {
     const auto pl = 4*((length+2)/3);
     auto output = reinterpret_cast<char *>(calloc(pl+1, 1)); //+1 for the terminating null that EVP_EncodeBlock adds on
     const auto ol = EVP_EncodeBlock(reinterpret_cast<unsigned char *>(output), input, length);
@@ -12,7 +12,7 @@ char* convert_to_base64(const unsigned char *input, int length) {
     return output;
 }
 
-unsigned char* decode_from_base64(const char* input, int length) {
+unsigned char* base64_decode(const char* input, int length) {
     const auto pl = 3*length/4;
     auto output = reinterpret_cast<unsigned char *>(calloc(pl+1, 1));
     const auto ol = EVP_DecodeBlock(output, reinterpret_cast<const unsigned char *>(input), length);
@@ -108,49 +108,72 @@ void generate_rsa_key() {
 }
 
 // , unsigned char **digest, unsigned int *digest_len
-std::string sign_message(std::string message) {
+std::string sign_message(std::string message, RSA* longTermKey) {
     // size_t len = sizeof(message) - 1;
     // unsigned int mdlen = EVP_MD_size(EVP_sha256());
     EVP_MD_CTX *mdctx;
+    EVP_PKEY* pKey = EVP_PKEY_new();
 
+    if (!EVP_PKEY_assign_RSA(pKey, longTermKey))
+    {
+        printf("EVP_PKEY_assign_RSA: %ld\n", ERR_get_error());
+        EVP_PKEY_free(pKey);
+        return "";
+    }
+
+    printf("To hash: %s\n", message);
 	if((mdctx = EVP_MD_CTX_new()) == NULL)
     {
         printf("EVP_MD_CTX_new: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pKey);
         return "";
     }
-	if(1 != EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL))
+	if(1 != EVP_DigestSignInit(mdctx, NULL, EVP_sha256(), NULL, pKey))
     {
-        printf("EVP_DigestInit_ex: %ld\n", ERR_get_error());
+        printf("EVP_DigestSignInit: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pKey);
         return "";
     }
-	if(1 != EVP_DigestUpdate(mdctx, message.c_str(), message.length()))
+	if(1 != EVP_DigestSignUpdate(mdctx, message.c_str(), message.length()))
     {
-        printf("EVP_DigestUpdate: %ld\n", ERR_get_error());
+        printf("EVP_DigestSignUpdate: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pKey);
         return "";
     }
     // unsigned char *digest = (unsigned char *)OPENSSL_malloc(EVP_MD_size(EVP_sha256()));
-    unsigned char digest_value[EVP_MAX_MD_SIZE];
-    unsigned int digest_len = 1;
+    unsigned char* digest_value;
+    // unsigned int digest_len = 1;
+    size_t digest_len = 0;
 
-	// if(digest == NULL)
-    // {
-    //     printf("OPENSSL_malloc: %ld\n", ERR_get_error());
-    //     EVP_MD_CTX_free(mdctx);
-    //     return;
-    // }
-	if(1 != EVP_DigestFinal_ex(mdctx, digest_value, &digest_len))
-    {
-        printf("EVP_DigestFinal_ex: %ld\n", ERR_get_error());
+    //Obtain length to allocate
+    if(1 != EVP_DigestSignFinal(mdctx, NULL, &digest_len)) {
+        printf("EVP_DigestSignFinal: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pKey);
+        return "";
+    }
+     /* Allocate memory for the signature based on size in slen */
+    if(!(digest_value = (unsigned char*) OPENSSL_malloc(sizeof(unsigned char) * (digest_len)))) {
+        printf("OPENSSL_malloc: %ld\n", ERR_get_error());
+        EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pKey);
+        OPENSSL_free(digest_value);
+        return "";
+    }
+    /* Obtain the signature */
+    if(1 != EVP_DigestSignFinal(mdctx, digest_value, &digest_len)) {
+        printf("EVP_DigestSignFinal: %ld\n", ERR_get_error());
+        EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pKey);
         return "";
     }
 
 	EVP_MD_CTX_free(mdctx);
-    // printf("%d", digest_len);
-    return convert_to_base64(digest_value, digest_len);
+    EVP_PKEY_free(pKey);
+    return base64_encode(digest_value, (int) digest_len);
 }
 
 // As seen in https://wiki.openssl.org/index.php/Elliptic_Curve_Diffie_Hellman

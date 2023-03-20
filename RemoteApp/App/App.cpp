@@ -232,7 +232,6 @@ int SGX_CDECL main(int argc, char *argv[])
     // ecall_thread_functions();
 
     // ecall_hello();
-
     ecall_send_key();
 
     std::string x = "Hello World!\n";

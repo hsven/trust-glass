@@ -45,7 +45,7 @@ enclave {
     from "sgx_tsgxssl.edl" import *;
     from "sgx_pthread.edl" import *;
     */
-
+/*
     from "Edger8rSyntax/Types.edl" import *;
     from "Edger8rSyntax/Pointers.edl" import *;
     from "Edger8rSyntax/Arrays.edl" import *;
@@ -53,7 +53,7 @@ enclave {
 
     from "TrustedLibrary/Libc.edl" import *;
     from "TrustedLibrary/Libcxx.edl" import ecall_exception, ecall_map;
-    /*
+    
     from "TrustedLibrary/Thread.edl" import *;
 */
     from "TrustedLibrary/Encryption.edl" import *;

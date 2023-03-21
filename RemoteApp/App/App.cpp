@@ -175,11 +175,7 @@ int initialize_enclave(void)
     return 0;
 }
 
-// std::string rsaEncrypt(std::string message, std::string key) {
-
-// }
-
-static std::string receive_message(SSL *ssl) {
+static std::string receive_message(SSL *sslConn) {
     std::string response = "";
     char rxbuf[128];
     size_t rxcap = sizeof(rxbuf);
@@ -187,7 +183,7 @@ static std::string receive_message(SSL *ssl) {
 
     // printf("Received: \n");
     do {
-        rxlen = SSL_read(ssl, rxbuf, rxcap);
+        rxlen = SSL_read(sslConn, rxbuf, rxcap);
 
         if (rxlen <= 0) {
             printf("Server closed connection\n");
@@ -220,38 +216,9 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
  
-    /* Utilize edger8r attributes */
-    // edger8r_array_attributes();
-    // edger8r_pointer_attributes();
-    // edger8r_type_attributes();
-    // edger8r_function_attributes();
-    
-    // /* Utilize trusted libraries */
-    // ecall_libc_functions();
-    // ecall_libcxx_functions();
-    // ecall_thread_functions();
-
-    // ecall_hello();
     ecall_send_key();
 
-    std::string x = "Hello World!\n";
-    // generate_QR_code(x);
-    // ecall_send_input(x);
-    
-    // while (x.compare("") != 0) {
-    //     std::cout << "\nInput string (Empty to exit): ";
-    //     std::getline(std::cin, x);
-    
-    //     ecall_send_input(x);
-    // }
-
-    // ecall_sum();
-    std::cout << "\n";
-    /* Destroy the enclave */
-
-
     SSL_CTX *ssl_ctx = NULL;
-    // SSL *ssl = NULL;
     int server_skt = -1;
     int client_skt = -1;
     bool is_server_running = true;
@@ -314,18 +281,7 @@ int SGX_CDECL main(int argc, char *argv[])
                 /* Show received message */
                 // printf("Received: %s", rxbuf);
 
-                // char* response = new char[4098];
                 ecall_send_input(std::string(rxbuf));
-                // char destination[strlen(response) + 1];
-                // strcpy(destination, response);
-                // TODO:: Seems like utilizing the string in any capacity causes a seg fault, idk why
-                /* Echo it back */
-                // printf("THE RESPONSEW: %s", response);
-                // if (SSL_write(ssl, "OK", strlen("OK")) <= 0) {
-                //     ERR_print_errors_fp(stderr);
-                // }
-
-                // delete response;
             }
         }
         if (is_server_running) {
@@ -341,7 +297,5 @@ int SGX_CDECL main(int argc, char *argv[])
     
     printf("Info: SampleEnclave successfully returned.\n");
 
-    // printf("Enter a character before exit ...\n");
-    // getchar();
     return 0;
 }

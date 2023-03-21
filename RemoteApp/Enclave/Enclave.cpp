@@ -42,9 +42,15 @@ unsigned char* secretKey = NULL;
 RSA* longTermKeyPair = NULL;
 RSA* longTermPeerKey = NULL;
 
+int messageCounter = 0;
+
 /* 
  * printf: 
  *   Invokes OCALL to display the enclave buffer to the terminal.
+ *   Note that the fmt section should end with a new line
+ *   
+ *   Example: printf("%s", "test\n");
+ *            printf("%s\n", "test");
  */
 int printf(const char* fmt, ...)
 {
@@ -86,10 +92,16 @@ ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, boo
 
         //Create freshness token
         response->freshnessToken = "";
+        // response->freshnessToken = rsa_encryption(std::to_string(messageCounter), longTermPeerKey);
 
         //Sign message
         response->digitalSignature = sign_message(mainMsg, longTermKeyPair);
     }
+
+    //Prints for DEBUG purposes
+    printf("Message: %s\n", response->message.c_str());
+    printf("Signature: %s\n", response->digitalSignature.c_str());
+    printf("Fresh Token: %s\n\n", response->freshnessToken.c_str());
 
     return response;
 }
@@ -106,30 +118,15 @@ void ecall_receive_input(const char* in) {
     //Decrypt message
 
     //Generate Response Message
-    ResponseMessage* response = new ResponseMessage();
+    ResponseMessage* response = create_response("", prepare_response(in), true);
 
-    //Prepare Response
-    response->message = prepare_response(in);
-
-    //Create freshness token
-    response->freshnessToken = "";
-
-    //Sign message
-    response->digitalSignature = sign_message(response->message, longTermKeyPair);
-
-    
     //Prints for DEBUG purposes
     printf("Message: %s\n", response->message.c_str());
     printf("Signature: %s\n", response->digitalSignature.c_str());
     printf("Fresh Token: %s\n", response->freshnessToken.c_str());
 
-
-    // *out = response->generate_final();
-    // ocall_print_qr_code(response->generate_final());
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
-
-    // return res;
 }
 
 void ecall_receive_key_pair(const char* in) {
@@ -140,6 +137,7 @@ void ecall_receive_key_pair(const char* in) {
     
     if (PEM_read_bio_RSAPrivateKey(bo, &longTermKeyPair, NULL, NULL) == NULL){
         printf("PEM_read_bio_RSAPrivateKey Error: %ld\n",  ERR_get_error());
+        BIO_free(bo);
         return;
     }
 
@@ -154,6 +152,7 @@ void ecall_receive_peer_key(const char* in) {
     
     if (PEM_read_bio_RSA_PUBKEY(bo, &longTermPeerKey, NULL, NULL) == NULL){
         printf("PEM_read_RSA_PUBKEY Error: %ld\n",  ERR_get_error());
+        BIO_free(bo);
         return;
     }
 
@@ -180,11 +179,14 @@ void ecall_setup_enclave_phase1(void) {
     }
     BN_CTX *ctx;
     ctx = BN_CTX_new();
-    const unsigned char* result = NULL;
-    result = (const unsigned char*) EC_POINT_point2hex(ecgroup, pub, POINT_CONVERSION_UNCOMPRESSED, ctx);
+    char* result = NULL;
+    result = EC_POINT_point2hex(ecgroup, pub, POINT_CONVERSION_UNCOMPRESSED, ctx);
     printf("POINT: %s\n", result);
-    const char* b64PubKey = base64_encode(result, strlen((char*) result));
+    const char* b64PubKey = base64_encode((const unsigned char*) result, strlen(result));
     printf("KEY: %s\n", b64PubKey);
+
+    BN_CTX_free(ctx);
+    OPENSSL_free(result);
 
     //Generate Response Message
     ResponseMessage* response = create_response("HANDSHAKE", b64PubKey, false);
@@ -205,7 +207,7 @@ void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
     secretKey = derive_shared_key(keyPair, peerPoint, &secretLen);
     secretKey[secretLen] = '\0';
 
-    printf("SECRET KEY: %s\nKey Length: %d\nRegistered Length: %d\n\n", base64_encode(secretKey, secretLen), secretLen, strlen((const char*) secretKey));
+    printf("SECRET KEY: %s\nKey Length: %ld\nRegistered Length: %ld\n\n", base64_encode(secretKey, secretLen), secretLen, strlen((const char*) secretKey));
 
     //Generate Response Message
     ResponseMessage* response = create_response("", "Welcome!", true);

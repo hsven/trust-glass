@@ -38,13 +38,6 @@ void printQr(const qrcodegen::QrCode &qr) {
 	}
 	response.append("\n");	
 	std::cout << std::endl;
-
-	// if (SSL_write(ssl, response.data(), response.length()) <= 0) {
-	// 	ERR_print_errors_fp(stderr);
-	// }
-	// if (SSL_write(ssl, "END", strlen("END")) <= 0) {
-	// 	ERR_print_errors_fp(stderr);
-	// }
 }
 
 

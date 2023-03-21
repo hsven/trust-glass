@@ -109,8 +109,6 @@ void generate_rsa_key() {
 
 // , unsigned char **digest, unsigned int *digest_len
 std::string sign_message(std::string message, RSA* longTermKey) {
-    // size_t len = sizeof(message) - 1;
-    // unsigned int mdlen = EVP_MD_size(EVP_sha256());
     EVP_MD_CTX *mdctx;
     EVP_PKEY* pKey = EVP_PKEY_new();
 
@@ -121,7 +119,7 @@ std::string sign_message(std::string message, RSA* longTermKey) {
         return "";
     }
 
-    printf("To hash: %s\n", message);
+    printf("To hash: %s\n", message.c_str());
 	if((mdctx = EVP_MD_CTX_new()) == NULL)
     {
         printf("EVP_MD_CTX_new: %ld\n", ERR_get_error());
@@ -168,6 +166,7 @@ std::string sign_message(std::string message, RSA* longTermKey) {
         printf("EVP_DigestSignFinal: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
         EVP_PKEY_free(pKey);
+        OPENSSL_free(digest_value);
         return "";
     }
 
@@ -178,14 +177,6 @@ std::string sign_message(std::string message, RSA* longTermKey) {
 
 // As seen in https://wiki.openssl.org/index.php/Elliptic_Curve_Diffie_Hellman
 bool generate_ec_key_pair(EC_KEY **ecKey) {
-    EVP_PKEY_CTX *pctx, *kctx;
-	// EVP_PKEY_CTX *ctx;
-	unsigned char *secret;
-    EVP_PKEY *keyPair = NULL;
-	EVP_PKEY *peerkey, *params = NULL;
-
-    EC_KEY *key;
-
     if(NULL == (*ecKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1))) {
         printf("EC_KEY_new_by_curve_name: %ld\n", ERR_get_error());
         return false;
@@ -197,25 +188,28 @@ bool generate_ec_key_pair(EC_KEY **ecKey) {
         return false;
     }
 
-    
-
-
-    
     return true;
 }
 
 unsigned char* get_public_key(EVP_PKEY *pkey) {
     int len = i2d_PublicKey(pkey, NULL);
-    // evp_pkey.
     unsigned char *buf = (unsigned char *) malloc (len + 1);
-    if (!buf)
-    {
-        //For some reason the usage of \n without an argument before is bad
+
+    if (0 < len) {
+        printf("i2d_PublicKey: %ld\n", ERR_get_error());
+        return NULL;
+    } 
+    else if (!buf) {
         printf("Failed in calling malloc()%c\n", ';');
-        return nullptr;
+        return NULL;
     }
+
     unsigned char *tbuf = buf;
-    i2d_PublicKey(pkey, &tbuf);
+    if (0 < i2d_PublicKey(pkey, &tbuf)) {
+        printf("i2d_PublicKey: %ld\n", ERR_get_error());
+        free(buf);
+        return NULL;
+    }
 
     return tbuf;
 }
@@ -235,16 +229,24 @@ EVP_PKEY* convert_to_PKEY(EC_POINT* point) {
     // error = EC_POINT_oct2point(g, p, tmpPubKey, sizeof(tmpPubKey), NULL);
     if (1 != EC_KEY_set_group(key, group)) {
         printf("EC_KEY_set_group: %ld\n", ERR_get_error());
+        EC_KEY_free(key);
+        EVP_PKEY_free(finalKey);
         return NULL;
     }
     if (1 != EC_KEY_set_public_key(key, point)) {
         printf("EC_KEY_set_public_key: %ld\n", ERR_get_error());
+        EC_KEY_free(key);
+        EVP_PKEY_free(finalKey);
         return NULL;
     }
     if (1 != EVP_PKEY_set1_EC_KEY(finalKey, key)) {
         printf("EVP_PKEY_set1_EC_KEY: %ld\n", ERR_get_error());
+        EC_KEY_free(key);
+        EVP_PKEY_free(finalKey);
         return NULL;
     }
+
+    EC_KEY_free(key);
     return finalKey;
 }
 
@@ -295,6 +297,7 @@ int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char*
      */
     if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
         printf("EVP_EncryptInit_ex: %ld\n", ERR_get_error());
+        EVP_CIPHER_CTX_free(ctx);
         return -1;
     }
 
@@ -304,6 +307,7 @@ int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char*
      */
     if(1 != EVP_EncryptUpdate(ctx, cipherText, &len, plainText, plainTextLen)) {
         printf("EVP_EncryptUpdate: %ld\n", ERR_get_error());
+        EVP_CIPHER_CTX_free(ctx);
         return -1;
     }
     ciphertext_len = len;
@@ -314,6 +318,7 @@ int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char*
      */
     if(1 != EVP_EncryptFinal_ex(ctx, cipherText + len, &len)) {
         printf("EVP_EncryptFinal_ex: %ld\n", ERR_get_error());
+        EVP_CIPHER_CTX_free(ctx);
         return -1;
     }
     ciphertext_len += len;
@@ -322,4 +327,38 @@ int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char*
     EVP_CIPHER_CTX_free(ctx);
 
     return ciphertext_len;
+}
+
+bool rsa_encryption(std::string data, RSA* longTermKey) {
+    EVP_PKEY* pKey = EVP_PKEY_new();
+
+    if (!EVP_PKEY_assign_RSA(pKey, longTermKey))
+    {
+        printf("EVP_PKEY_assign_RSA: %ld\n", ERR_get_error());
+        EVP_PKEY_free(pKey);
+        return "";
+    }
+
+    std::string output = "";
+    // Create/initialize context
+    EVP_PKEY_CTX* ctx;
+    ctx = EVP_PKEY_CTX_new(pKey, NULL);
+    EVP_PKEY_encrypt_init(ctx);
+
+    // Specify padding: default is PKCS#1 v1.5
+    // EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING); // for OAEP with SHA1 for both digests
+
+    // Encryption
+    size_t ciphertextLen;
+    EVP_PKEY_encrypt(ctx, NULL, &ciphertextLen, (const unsigned char*)data.c_str(), data.size());
+    unsigned char* ciphertext = (unsigned char*)OPENSSL_malloc(ciphertextLen);
+    EVP_PKEY_encrypt(ctx, ciphertext, &ciphertextLen, (const unsigned char*)data.c_str(), data.size());
+    output.assign((char*)ciphertext, ciphertextLen);
+
+    // Release memory
+    EVP_PKEY_free(pKey);
+    EVP_PKEY_CTX_free(ctx);
+    OPENSSL_free(ciphertext);
+
+    return true; // add exception/error handling
 }

@@ -41,19 +41,32 @@
 extern "C" {
 #endif
 
-struct ResponseMessage {
+struct MessageContent {
     std::string header;
     std::string message;
+    int freshnessToken;
+    std::string jsonMessage = "";
+
+    std::string generate_final() {
+        return "{\"hdr\":\"" + header + 
+            "\",\"msg\":\"" + message + 
+            "\",\"fresh\":" + std::to_string(freshnessToken) +
+            "}";
+    }
+};
+
+struct ResponseMessage {
+    std::string content;
     std::string digitalSignature;
-    std::string freshnessToken;
+    //Freshness token is incorporated inside the message, 
+    // otherwise there's no obvious way to prevent tampering on it
     std::string finalMessage = "";
 
     char* generate_final() {
-        finalMessage = "{\"header\":\"" + header + 
-            "\",\"msg\":\"" + message + 
+        finalMessage = "{\"msg\":\"" + content + 
             "\",\"sig\":\"" + digitalSignature +
-            "\",\"fresh\":\"" + freshnessToken +
             "\"}";
+
         return finalMessage.data();
     }
 

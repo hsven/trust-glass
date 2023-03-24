@@ -40,7 +40,10 @@ EC_POINT *peerPoint = NULL;
 unsigned char* secretKey = NULL;
 
 RSA* longTermKeyPair = NULL;
+EVP_PKEY* longTermKeyPair_pkey =  EVP_PKEY_new();
+
 RSA* longTermPeerKey = NULL;
+EVP_PKEY* longTermPeerKey_pkey =  EVP_PKEY_new();
 
 int messageCounter = 0;
 
@@ -70,39 +73,41 @@ int printf(const char* fmt, ...)
  *   Creates an adequate response according to the input command.
  */
 std::string prepare_response(std::string in) {
-    std::string response = "response_";
-    return response + in;
+    std::string response = "response_" + in;
+    return response;
 }
 
 ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
     //Generate Response Message
     ResponseMessage* response = new ResponseMessage();
-    response->header = headerMsg;
+    MessageContent* content = new MessageContent();
+    content->header = headerMsg;
+    content->message = mainMsg;
+    content->freshnessToken = messageCounter;
+    std::string contentString = content->generate_final();
 
-    //Prepare Response
-    response->message = mainMsg;
+    //Prepare Response    
+    response->content = base64_encode((unsigned char*) contentString.data(), contentString.length());
 
     //If message requires security properties
     if (withSecure) {
         //Encrypt response
         //TODO: Message size should not be hardcoded
-        unsigned char encryptedMessage[256];
-        int msgLen = aes_encryption((unsigned char*) mainMsg.data(), mainMsg.length(), secretKey, encryptedMessage);
-        response->message = base64_encode(encryptedMessage, msgLen);
-
-        //Create freshness token
-        response->freshnessToken = "";
-        // response->freshnessToken = rsa_encryption(std::to_string(messageCounter), longTermPeerKey);
+        unsigned char encryptedMessage[contentString.length() + 256];
+        int msgLen = aes_encryption((unsigned char*) contentString.data(), contentString.length(), secretKey, encryptedMessage);
+        response->content = base64_encode(encryptedMessage, msgLen);
 
         //Sign message
-        response->digitalSignature = sign_message(mainMsg, longTermKeyPair);
+        response->digitalSignature = sign_message(contentString.c_str(), longTermKeyPair_pkey);
     }
 
     //Prints for DEBUG purposes
-    printf("Message: %s\n", response->message.c_str());
+    printf("%s\n", "From the original creator!");
+    printf("Message: %s\n", response->content.c_str());
     printf("Signature: %s\n", response->digitalSignature.c_str());
-    printf("Fresh Token: %s\n\n", response->freshnessToken.c_str());
+    printf("Freshess: %d\n", messageCounter);
 
+    messageCounter++;
     return response;
 }
 
@@ -118,12 +123,7 @@ void ecall_receive_input(const char* in) {
     //Decrypt message
 
     //Generate Response Message
-    ResponseMessage* response = create_response("", prepare_response(in), true);
-
-    //Prints for DEBUG purposes
-    printf("Message: %s\n", response->message.c_str());
-    printf("Signature: %s\n", response->digitalSignature.c_str());
-    printf("Fresh Token: %s\n", response->freshnessToken.c_str());
+    ResponseMessage* response = create_response("MSG", prepare_response(in), true);
 
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
@@ -138,6 +138,15 @@ void ecall_receive_key_pair(const char* in) {
     if (PEM_read_bio_RSAPrivateKey(bo, &longTermKeyPair, NULL, NULL) == NULL){
         printf("PEM_read_bio_RSAPrivateKey Error: %ld\n",  ERR_get_error());
         BIO_free(bo);
+        RSA_free(longTermKeyPair);
+        return;
+    }
+
+    if (!EVP_PKEY_assign_RSA(longTermKeyPair_pkey, longTermKeyPair))
+    {
+        printf("EVP_PKEY_assign_RSA: %ld\n", ERR_get_error());
+        EVP_PKEY_free(longTermKeyPair_pkey);
+        RSA_free(longTermKeyPair);
         return;
     }
 
@@ -153,6 +162,14 @@ void ecall_receive_peer_key(const char* in) {
     if (PEM_read_bio_RSA_PUBKEY(bo, &longTermPeerKey, NULL, NULL) == NULL){
         printf("PEM_read_RSA_PUBKEY Error: %ld\n",  ERR_get_error());
         BIO_free(bo);
+        return;
+    }
+
+    if (!EVP_PKEY_assign_RSA(longTermPeerKey_pkey, longTermPeerKey))
+    {
+        printf("EVP_PKEY_assign_RSA: %ld\n", ERR_get_error());
+        EVP_PKEY_free(longTermPeerKey_pkey);
+        RSA_free(longTermPeerKey);
         return;
     }
 
@@ -210,7 +227,7 @@ void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
     printf("SECRET KEY: %s\nKey Length: %ld\nRegistered Length: %ld\n\n", base64_encode(secretKey, secretLen), secretLen, strlen((const char*) secretKey));
 
     //Generate Response Message
-    ResponseMessage* response = create_response("", "Welcome!", true);
+    ResponseMessage* response = create_response("MSG", "Welcome!", true);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }

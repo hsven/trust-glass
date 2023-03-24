@@ -108,56 +108,41 @@ void generate_rsa_key() {
 }
 
 // , unsigned char **digest, unsigned int *digest_len
-std::string sign_message(std::string message, RSA* longTermKey) {
+std::string sign_message(const char* message, EVP_PKEY* pKey) {
     EVP_MD_CTX *mdctx;
-    EVP_PKEY* pKey = EVP_PKEY_new();
 
-    if (!EVP_PKEY_assign_RSA(pKey, longTermKey))
-    {
-        printf("EVP_PKEY_assign_RSA: %ld\n", ERR_get_error());
-        EVP_PKEY_free(pKey);
-        return "";
-    }
-
-    printf("To hash: %s\n", message.c_str());
+    printf("To hash: %s\n", message);
 	if((mdctx = EVP_MD_CTX_new()) == NULL)
     {
         printf("EVP_MD_CTX_new: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        EVP_PKEY_free(pKey);
         return "";
     }
 	if(1 != EVP_DigestSignInit(mdctx, NULL, EVP_sha256(), NULL, pKey))
     {
         printf("EVP_DigestSignInit: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        EVP_PKEY_free(pKey);
         return "";
     }
-	if(1 != EVP_DigestSignUpdate(mdctx, message.c_str(), message.length()))
+	if(1 != EVP_DigestSignUpdate(mdctx, message, strlen(message)))
     {
         printf("EVP_DigestSignUpdate: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        EVP_PKEY_free(pKey);
         return "";
     }
-    // unsigned char *digest = (unsigned char *)OPENSSL_malloc(EVP_MD_size(EVP_sha256()));
     unsigned char* digest_value;
-    // unsigned int digest_len = 1;
     size_t digest_len = 0;
 
     //Obtain length to allocate
     if(1 != EVP_DigestSignFinal(mdctx, NULL, &digest_len)) {
         printf("EVP_DigestSignFinal: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        EVP_PKEY_free(pKey);
         return "";
     }
      /* Allocate memory for the signature based on size in slen */
     if(!(digest_value = (unsigned char*) OPENSSL_malloc(sizeof(unsigned char) * (digest_len)))) {
         printf("OPENSSL_malloc: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        EVP_PKEY_free(pKey);
         OPENSSL_free(digest_value);
         return "";
     }
@@ -165,13 +150,11 @@ std::string sign_message(std::string message, RSA* longTermKey) {
     if(1 != EVP_DigestSignFinal(mdctx, digest_value, &digest_len)) {
         printf("EVP_DigestSignFinal: %ld\n", ERR_get_error());
         EVP_MD_CTX_free(mdctx);
-        EVP_PKEY_free(pKey);
         OPENSSL_free(digest_value);
         return "";
     }
 
 	EVP_MD_CTX_free(mdctx);
-    EVP_PKEY_free(pKey);
     return base64_encode(digest_value, (int) digest_len);
 }
 
@@ -287,7 +270,6 @@ int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char*
         printf("EVP_CIPHER_CTX_new: %ld\n", ERR_get_error());
         return -1;
     }
-
     /*
      * Initialise the encryption operation. IMPORTANT - ensure you use a key
      * and IV size appropriate for your cipher

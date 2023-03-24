@@ -261,18 +261,12 @@ int SGX_CDECL main(int argc, char *argv[])
 
             /* Echo loop */
             while (true) {
-                /* Get message from client; will fail if client closes connection */
-                if ((rxlen = SSL_read(ssl, rxbuf, rxcap)) <= 0) {
-                    if (rxlen == 0) {
-                        printf("Client closed connection\n");
-                    }
-                    ERR_print_errors_fp(stderr);
-                    break;
-                }
-                /* Insure null terminated input */
-                rxbuf[rxlen] = 0;
+                // /* Get message from client; will fail if client closes connection */
+                std::string in = receive_message(ssl);
                 /* Look for kill switch */
-                if (strcmp(rxbuf, "kill\n") == 0) {
+                std::cout << "Received via SSL: " << in << std::endl;
+
+                if (in.compare("kill\n") == 0) {
                     /* Terminate...with extreme prejudice */
                     printf("Server received 'kill' command\n");
                     is_server_running = false;
@@ -281,7 +275,7 @@ int SGX_CDECL main(int argc, char *argv[])
                 /* Show received message */
                 // printf("Received: %s", rxbuf);
 
-                ecall_send_input(std::string(rxbuf));
+                ecall_send_input(in);
             }
         }
         if (is_server_running) {

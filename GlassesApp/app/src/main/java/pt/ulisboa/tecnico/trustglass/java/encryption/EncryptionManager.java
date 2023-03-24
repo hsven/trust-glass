@@ -54,11 +54,14 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
+class MessageContent {
+    public String hdr;
+    public String msg;
+    public int fresh;
+}
 class Message {
-    public String header;
     public String msg;
     public String sig;
-    public String fresh;
 }
 
 public class EncryptionManager {
@@ -73,6 +76,8 @@ public class EncryptionManager {
     private RSAPrivateKey longTermKeyPair = null;
     private RSAPublicKey longTermPeerKey = null;
 
+    private int messageCounter = 0;
+
     public EncryptionManager(Context appCtx) {
         ctx = appCtx;
         importKeys();
@@ -82,22 +87,36 @@ public class EncryptionManager {
         Gson gson = new Gson();
         Message msg = gson.fromJson(text, Message.class);
         Log.d("Received JSON", text);
+
         //If in handshake step
-        if (msg.header.equals("HANDSHAKE")) {
-            return handshakeSetup(msg);
+        //TODO: Improve the check for an handshake message
+        if (msg.sig.isEmpty()) {
+            MessageContent content = extractMessageContent(msg);
+            Log.d("Extracted Content Msg", content.msg);
+            messageCounter = 1;
+            return handshakeSetup(content);
         }
 
         //Decrypt
         String decryptedMsg = AESDecrypt(msg.msg);
 
+        //Extract
+        MessageContent content = gson.fromJson(decryptedMsg, MessageContent.class);
+        Log.d("Extracted Content Msg", decryptedMsg);
+
         //Check authenticity
         if (!checkAuthenticity(decryptedMsg, msg)) {
             return "ERROR: Hash mismatch in the received message!";
         }
+
         //Check freshness
+        if (content.fresh != messageCounter) {
+            return "ERROR: Freshness check failed!";
+        }
+        messageCounter = content.fresh + 1;
 
         //Display message
-        return decryptedMsg;
+        return content.msg;
     }
 
     public KeyPair generateECKeyPair() {
@@ -111,6 +130,12 @@ public class EncryptionManager {
         } catch (InvalidAlgorithmParameterException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private MessageContent extractMessageContent(Message msg) {
+        byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
+        Gson gson = new Gson();
+        return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), MessageContent.class);
     }
 
     private void importKeys() {
@@ -171,8 +196,9 @@ public class EncryptionManager {
         }
     }
 
-    private String handshakeSetup(Message msg) {
+    private String handshakeSetup(MessageContent msg) {
         byte[] decodedKey = Base64.decode(msg.msg, Base64.DEFAULT);
+
         peerKey = ecPointToPublicKey(new String(decodedKey));
         sessionKeyPair = generateECKeyPair();
         if (peerKey == null || sessionKeyPair == null) {

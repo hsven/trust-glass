@@ -39,10 +39,10 @@ EC_KEY *keyPair = NULL;
 EC_POINT *peerPoint = NULL;
 unsigned char* secretKey = NULL;
 
-RSA* longTermKeyPair = NULL;
+EC_KEY* longTermKeyPair = NULL;
 EVP_PKEY* longTermKeyPair_pkey =  EVP_PKEY_new();
 
-RSA* longTermPeerKey = NULL;
+EC_KEY* longTermPeerKey = NULL;
 EVP_PKEY* longTermPeerKey_pkey =  EVP_PKEY_new();
 
 int messageCounter = 0;
@@ -130,23 +130,15 @@ void ecall_receive_input(const char* in) {
 }
 
 void ecall_receive_key_pair(const char* in) {
-    printf("%s", in);
+    printf("Peer Key: %s\n", in);
 
     BIO* bo = BIO_new(BIO_s_mem());
     BIO_write(bo, in, strlen(in));
-    
-    if (PEM_read_bio_RSAPrivateKey(bo, &longTermKeyPair, NULL, NULL) == NULL){
-        printf("PEM_read_bio_RSAPrivateKey Error: %ld\n",  ERR_get_error());
-        BIO_free(bo);
-        RSA_free(longTermKeyPair);
-        return;
-    }
 
-    if (!EVP_PKEY_assign_RSA(longTermKeyPair_pkey, longTermKeyPair))
-    {
-        printf("EVP_PKEY_assign_RSA: %ld\n", ERR_get_error());
+    if (PEM_read_bio_PrivateKey(bo, &longTermKeyPair_pkey, NULL, NULL) == NULL) {
+        printf("PEM_read_bio_PrivateKey: %ld\n",  ERR_get_error());
+        BIO_free(bo);
         EVP_PKEY_free(longTermKeyPair_pkey);
-        RSA_free(longTermKeyPair);
         return;
     }
 
@@ -154,22 +146,15 @@ void ecall_receive_key_pair(const char* in) {
 }
 
 void ecall_receive_peer_key(const char* in) {
-    printf("%s", in);
+    printf("Peer Key: %s\n", in);
 
     BIO* bo = BIO_new(BIO_s_mem());
     BIO_write(bo, in, strlen(in));
-    
-    if (PEM_read_bio_RSA_PUBKEY(bo, &longTermPeerKey, NULL, NULL) == NULL){
-        printf("PEM_read_RSA_PUBKEY Error: %ld\n",  ERR_get_error());
-        BIO_free(bo);
-        return;
-    }
 
-    if (!EVP_PKEY_assign_RSA(longTermPeerKey_pkey, longTermPeerKey))
-    {
-        printf("EVP_PKEY_assign_RSA: %ld\n", ERR_get_error());
+    if (PEM_read_bio_PUBKEY(bo, &longTermPeerKey_pkey, NULL, NULL) == NULL) {
+        printf("PEM_read_bio_PUBKEY: %ld\n",  ERR_get_error());
+        BIO_free(bo);
         EVP_PKEY_free(longTermPeerKey_pkey);
-        RSA_free(longTermPeerKey);
         return;
     }
 
@@ -214,9 +199,8 @@ void ecall_setup_enclave_phase1(void) {
 void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
     //For some reason the string enters with an extra, unwanted, character
     printf("KEY: %s\n", encodedPeerKey);
-    unsigned char* decodedPeerKey = base64_decode(encodedPeerKey, strlen(encodedPeerKey));
-    printf("DECODED KEY: %s\n", decodedPeerKey);
-    peerPoint = extract_ec_point((char*) decodedPeerKey);
+
+    peerPoint = extract_ec_point((char*) encodedPeerKey);
     if (!peerPoint) {
         printf("%s\n", "Failed to create the EC_POINT for the peer key");
     }

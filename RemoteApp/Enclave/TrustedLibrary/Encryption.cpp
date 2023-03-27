@@ -120,7 +120,7 @@ std::string sign_message(const char* message, EVP_PKEY* pKey) {
     }
 	if(1 != EVP_DigestSignInit(mdctx, NULL, EVP_sha256(), NULL, pKey))
     {
-        printf("EVP_DigestSignInit: %ld\n", ERR_get_error());
+        printf("EVP_DigestSignInit: %s\n", ERR_error_string(ERR_get_error(), NULL));        
         EVP_MD_CTX_free(mdctx);
         return "";
     }

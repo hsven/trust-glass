@@ -200,7 +200,7 @@ int main(int argc, char **argv)
         while (true) {
             /* Get a line of input and send it */
             if(!send_input(ssl))
-                break;
+                goto exit;
 
             /* Wait for the echo */
             printf("Received: \n");
@@ -273,9 +273,15 @@ static bool send_input(SSL* ssl) {
     std::string input = "";
     std::getline(std::cin, input);
     if (input.compare("\n") == 0 ||
-        input.empty())
+        input.empty()) {
+
+        if ((result = SSL_write(ssl, "kill\n", strlen("kill\n")) <= 0)) {
+        printf("Server closed connection\n");
+        ERR_print_errors_fp(stderr);
         return false;
-    
+        }
+    }
+
     if ((result = SSL_write(ssl, (input+"END").data(), (input+"END").length())) <= 0) {
         printf("Server closed connection\n");
         ERR_print_errors_fp(stderr);

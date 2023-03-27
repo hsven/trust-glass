@@ -11,3 +11,7 @@ You can run samples with:
 make SGX_MODE=SIM
 ./app
 ```
+NOTE: Make sure the the glasses' EC private key is in pkcs8 form!
+```sh
+openssl pkey -in <inputKey> -out <outputKey>
+```

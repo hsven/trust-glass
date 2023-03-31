@@ -32,6 +32,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -73,8 +74,8 @@ public class EncryptionManager {
 
     private SecretKey symKey = null;
 
-    private RSAPrivateKey longTermKeyPair = null;
-    private RSAPublicKey longTermPeerKey = null;
+    private ECPrivateKey longTermKeyPair = null;
+    private ECPublicKey longTermPeerKey = null;
 
     private int messageCounter = 0;
 
@@ -141,16 +142,16 @@ public class EncryptionManager {
     private void importKeys() {
         try {
             //Import system key
-            byte[] encoded = importSingleKey("GlassKeyPair.pem", true);
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            byte[] encoded = importSingleKey("EC_GlassPrivKey.pem", true);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC");
             PKCS8EncodedKeySpec privKeySpec = new PKCS8EncodedKeySpec(encoded);
-            longTermKeyPair = (RSAPrivateKey) keyFactory.generatePrivate(privKeySpec);
+            longTermKeyPair = (ECPrivateKey) keyFactory.generatePrivate(privKeySpec);
 
             //Import TEE public key
-            encoded = importSingleKey("TEEPubKey.pem", false);
-            keyFactory = KeyFactory.getInstance("RSA");
+            encoded = importSingleKey("EC_TEEPubKey.pem", false);
+            keyFactory = KeyFactory.getInstance("EC");
             X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encoded);
-            longTermPeerKey = (RSAPublicKey) keyFactory.generatePublic(publicKeySpec);
+            longTermPeerKey = (ECPublicKey) keyFactory.generatePublic(publicKeySpec);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         } catch (InvalidKeySpecException e) {
@@ -213,19 +214,25 @@ public class EncryptionManager {
         //No wrap simplifies the debug process (no need to hand write codes or copy-paste 76 characters at a time)
         ECPublicKey ecPubKey = (ECPublicKey) sessionKeyPair.getPublic();
         ECPoint publicPoint = ecPubKey.getW();
+
+        String compressedKeyPrefix = "";
+        if(publicPoint.getAffineY().mod(new BigInteger("2")).equals(BigInteger.ZERO))
+            compressedKeyPrefix = "02";
+        else
+            compressedKeyPrefix = "03";
+
         Log.d("pointX:", publicPoint.getAffineX().toString(16));
         Log.d("pointY:", publicPoint.getAffineY().toString(16));
-        String outputHex = "04" + publicPoint.getAffineX().toString(16) + publicPoint.getAffineY().toString(16);
-        String pubKeyToSend = Base64.encodeToString(outputHex.getBytes(), Base64.NO_WRAP);
+        String outputHex = compressedKeyPrefix + publicPoint.getAffineX().toString(16);
         Log.d("SecretKeyBase64:", key);
-        Log.d("PubKeyToSend", pubKeyToSend);
+        Log.d("PubKeyToSend", outputHex);
 
-        return "Handshake OK\nWrite the following key in the keyboard:\n\n" + pubKeyToSend;
+        return "Handshake OK\nWrite the following key in the keyboard:\n\n" + outputHex;
     }
 
     private boolean checkAuthenticity(String decryptedMsg, Message msg) {
         try {
-            Signature sig = Signature.getInstance("SHA256withRSA");
+            Signature sig = Signature.getInstance("SHA256withECDSA");
             sig.initVerify(longTermPeerKey);
             sig.update(decryptedMsg.getBytes());
             return sig.verify(Base64.decode(msg.sig, Base64.DEFAULT));

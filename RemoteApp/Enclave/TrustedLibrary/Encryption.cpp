@@ -23,6 +23,16 @@ unsigned char* base64_decode(const char* input, int length) {
     return output;
 }
 
+int base64_decode_len(const char* input, int length, unsigned char** out) {
+    const auto pl = 3*length/4;
+    *out = reinterpret_cast<unsigned char *>(calloc(pl+1, 1));
+    const auto ol = EVP_DecodeBlock(*out, reinterpret_cast<const unsigned char *>(input), length);
+    if (pl != ol) {
+        printf("EVP_DecodeBlock: %ld\n", ERR_get_error());
+        return NULL;
+    }
+    return ol;
+}
 
 //Taken from intel sgxssl test app
 void generate_rsa_key() {

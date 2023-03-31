@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <vector>
+#include <sgx_trts.h>
 #include "TrustedLibrary/Encryption.h"
 
 #if defined(__cplusplus)

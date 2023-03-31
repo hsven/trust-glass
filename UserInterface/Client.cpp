@@ -203,12 +203,10 @@ int main(int argc, char **argv)
                 goto exit;
 
             /* Wait for the echo */
-            printf("Received: \n");
             response = receive_message(ssl);
 
             display_message(response);
-            printf("--End--\n");
-
+            std::cout << std::endl;
         }
         printf("Client exiting...\n");
     } else {
@@ -270,6 +268,7 @@ static std::string receive_message(SSL *ssl) {
 
 static bool send_input(SSL* ssl) {
     int result;
+    std::cout << "Input:" << std::endl; 
     std::string input = "";
     std::getline(std::cin, input);
     if (input.compare("\n") == 0 ||
@@ -295,7 +294,8 @@ static void display_message(std::string response) {
     qrcodegen::QrCode::Ecc errCorLvl = qrcodegen::QrCode::Ecc::LOW;  // Error correction level
     // Make and print the QR Code symbol
     qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(response.c_str(), errCorLvl);
-    printQr(qr);
+    // printQr(qr);
+    std::cout << "Response QR Code printed\n" << std::endl;
     toSvgFile("../qrCode.svg", qr, 1);
 }
 

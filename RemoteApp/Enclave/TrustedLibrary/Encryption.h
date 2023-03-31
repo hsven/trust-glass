@@ -13,6 +13,7 @@
 
 char* base64_encode(const unsigned char *input, int length);
 unsigned char* base64_decode(const char* input, int length);
+int base64_decode_len(const char* input, int length, unsigned char** out);
 void generate_rsa_key(void);
 std::string sign_message(const char* message, EVP_PKEY* longTermKey);
 bool generate_ec_key_pair(EC_KEY **ecKey);

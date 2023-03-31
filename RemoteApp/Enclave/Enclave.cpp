@@ -34,6 +34,9 @@
 #include <stdarg.h>
 #include <stdio.h> /* vsnprintf */
 #include <string>
+#include <algorithm>
+#include <map>
+#include <random>
 
 EC_KEY *keyPair = NULL;
 EC_POINT *peerPoint = NULL;
@@ -46,6 +49,18 @@ EC_KEY* longTermPeerKey = NULL;
 EVP_PKEY* longTermPeerKey_pkey =  EVP_PKEY_new();
 
 int messageCounter = 0;
+
+enum OptionTypes {
+    CONFIRM,
+    DENY,
+};
+
+//This map allows the TEE to keep track of the options the user
+//has at their disposal during interactions
+std::map<std::string, OptionTypes> userOptions = {
+    {"1", OptionTypes::CONFIRM},
+    {"2", OptionTypes::DENY},
+};
 
 /* 
  * printf: 
@@ -73,8 +88,30 @@ int printf(const char* fmt, ...)
  *   Creates an adequate response according to the input command.
  */
 std::string prepare_response(std::string in) {
-    std::string response = "response_" + in;
-    return response;
+    for (auto i : userOptions)
+    {
+        printf("%s:::%d\n", i.first, i.second);
+    }
+    
+    if(!userOptions.empty()) {
+        printf("%d\n", userOptions.count(in));
+        if(userOptions.count(in) == 1) {
+            switch (userOptions[in]) {
+                case OptionTypes::CONFIRM:
+                    return "CONFIRMED";
+                    
+                case OptionTypes::DENY:
+                    return "DENIED";
+
+                default:
+                    return "Invalid Option! Please retype your selection";
+            }
+        }
+    } else {
+        return "response_" + in;
+        // return response;
+    }
+    return "ERROR when preparing response";
 }
 
 ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
@@ -199,8 +236,14 @@ void ecall_setup_enclave_phase1(void) {
 void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
     //For some reason the string enters with an extra, unwanted, character
     printf("KEY: %s\n", encodedPeerKey);
+    unsigned char* decodedPeerKey = NULL;
 
-    peerPoint = extract_ec_point((char*) encodedPeerKey);
+    int len = base64_decode_len(encodedPeerKey, strlen(encodedPeerKey), &decodedPeerKey);
+    std::string hexStr = std::string(OPENSSL_buf2hexstr(decodedPeerKey, len));
+    hexStr.erase(std::remove(hexStr.begin(), hexStr.end(), ':'), hexStr.end());
+    printf("%s\n", hexStr.data());
+
+    peerPoint = extract_ec_point(hexStr.data());
     if (!peerPoint) {
         printf("%s\n", "Failed to create the EC_POINT for the peer key");
     }
@@ -211,7 +254,28 @@ void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
     printf("SECRET KEY: %s\nKey Length: %ld\nRegistered Length: %ld\n\n", base64_encode(secretKey, secretLen), secretLen, strlen((const char*) secretKey));
 
     //Generate Response Message
-    ResponseMessage* response = create_response("MSG", "Welcome!", true);
+
+    userOptions.clear();
+    //Select a random character for each action
+    char n[12];
+    sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
+                        sizeof(n));
+
+    std::string opt1 (1, 'a' + (*(char*)n)%24);
+    std::string opt2 (1, 'a');
+    do {
+        sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
+                        sizeof(n));
+        opt2 = std::string(1, 'a' + (*(char*)n)%24);
+    } while (opt1.compare(opt2) == 0);
+    
+    userOptions = {
+        {opt1, OptionTypes::CONFIRM},
+        {opt2, OptionTypes::DENY},
+    };
+
+    std::string resStr = "Welcome!\nPress \'" + opt1 + "\' to enter interactive mode.\nPress \'" + opt2 + "\' to enter echo mode.";
+    ResponseMessage* response = create_response("MSG", resStr, true);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }

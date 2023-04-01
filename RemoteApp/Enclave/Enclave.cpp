@@ -38,6 +38,8 @@
 #include <map>
 #include <random>
 
+#include "TrustedLibrary/ResponseManager.cpp"
+
 EC_KEY *keyPair = NULL;
 EC_POINT *peerPoint = NULL;
 unsigned char* secretKey = NULL;
@@ -49,18 +51,32 @@ EC_KEY* longTermPeerKey = NULL;
 EVP_PKEY* longTermPeerKey_pkey =  EVP_PKEY_new();
 
 int messageCounter = 0;
+ResponseManager resManager = ResponseManager();
 
-enum OptionTypes {
-    CONFIRM,
-    DENY,
-};
 
-//This map allows the TEE to keep track of the options the user
-//has at their disposal during interactions
-std::map<std::string, OptionTypes> userOptions = {
-    {"1", OptionTypes::CONFIRM},
-    {"2", OptionTypes::DENY},
-};
+/**
+ * Creates an alphanumeric string of specified length.
+ * Taken from https://stackoverflow.com/questions/440133/how-do-i-create-a-random-alpha-numeric-string-in-c
+*/
+std::string generate_random_string(const int len) {
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+    std::string tmp_s;
+    tmp_s.reserve(len);
+
+
+    for (int i = 0; i < len; ++i) {
+        char n[12];
+        sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
+                        sizeof(n));
+
+        tmp_s += alphanum[(*(char*)n) % (sizeof(alphanum) - 1)];
+    }
+    
+    return tmp_s;
+}
 
 /* 
  * printf: 
@@ -83,36 +99,6 @@ int printf(const char* fmt, ...)
     return (int)strnlen(buf, BUFSIZ - 1) + 1;
 }
 
-/* 
- * prepare_response: 
- *   Creates an adequate response according to the input command.
- */
-std::string prepare_response(std::string in) {
-    for (auto i : userOptions)
-    {
-        printf("%s:::%d\n", i.first, i.second);
-    }
-    
-    if(!userOptions.empty()) {
-        printf("%d\n", userOptions.count(in));
-        if(userOptions.count(in) == 1) {
-            switch (userOptions[in]) {
-                case OptionTypes::CONFIRM:
-                    return "CONFIRMED";
-                    
-                case OptionTypes::DENY:
-                    return "DENIED";
-
-                default:
-                    return "Invalid Option! Please retype your selection";
-            }
-        }
-    } else {
-        return "response_" + in;
-        // return response;
-    }
-    return "ERROR when preparing response";
-}
 
 ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
     //Generate Response Message
@@ -160,7 +146,7 @@ void ecall_receive_input(const char* in) {
     //Decrypt message
 
     //Generate Response Message
-    ResponseMessage* response = create_response("MSG", prepare_response(in), true);
+    ResponseMessage* response = create_response("MSG", resManager.prepare_response(in), true);
 
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
@@ -255,27 +241,27 @@ void ecall_setup_enclave_phase2(const char* encodedPeerKey) {
 
     //Generate Response Message
 
-    userOptions.clear();
-    //Select a random character for each action
-    char n[12];
-    sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
-                        sizeof(n));
+    resManager.userMenu.clear();
+    std::string opt1 = generate_random_string(4);
 
-    std::string opt1 (1, 'a' + (*(char*)n)%24);
-    std::string opt2 (1, 'a');
+    std::string opt2 = "abcd";
     do {
-        sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
-                        sizeof(n));
-        opt2 = std::string(1, 'a' + (*(char*)n)%24);
+        opt2 = generate_random_string(4);
     } while (opt1.compare(opt2) == 0);
-    
-    userOptions = {
-        {opt1, OptionTypes::CONFIRM},
-        {opt2, OptionTypes::DENY},
+    std::string opt3 = "abcd";
+    do {
+        opt3 = generate_random_string(4);
+    } while (opt1.compare(opt3) == 0 && opt2.compare(opt3) == 0);
+
+    resManager.userMenu = {
+        {opt1, MenuOptions::EXAMPLE_1},
+        {opt2, MenuOptions::EXAMPLE_2},
+        {opt3, MenuOptions::EXAMPLE_5},
     };
 
-    std::string resStr = "Welcome!\nPress \'" + opt1 + "\' to enter interactive mode.\nPress \'" + opt2 + "\' to enter echo mode.";
+    std::string resStr = "Welcome!\nType:\n- \'" + opt1 + "\' to enter Menu 1.\n- \'" + opt2 + "\' to enter Menu 2.\n- \'" + opt3 + "\' to enter echo mode.";
     ResponseMessage* response = create_response("MSG", resStr, true);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }
+

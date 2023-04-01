@@ -223,11 +223,16 @@ public class EncryptionManager {
 
         Log.d("pointX:", publicPoint.getAffineX().toString(16));
         Log.d("pointY:", publicPoint.getAffineY().toString(16));
-        String outputHex = compressedKeyPrefix + publicPoint.getAffineX().toString(16);
-        Log.d("SecretKeyBase64:", key);
-        Log.d("PubKeyToSend", outputHex);
 
-        return "Handshake OK\nWrite the following key in the keyboard:\n\n" + outputHex;
+        String outputHex = compressedKeyPrefix + publicPoint.getAffineX().toString(16);
+        byte[] outputBytes = new BigInteger(outputHex, 16).toByteArray();
+        String out = Base64.encodeToString(outputBytes, Base64.DEFAULT);
+
+        Log.d("SecretKeyBase64:", key);
+        Log.d("PubKeyInHex", outputHex);
+        Log.d("PubKeyToSend", out);
+
+        return "Handshake OK\nWrite the following key in the keyboard:\n\n" + out;
     }
 
     private boolean checkAuthenticity(String decryptedMsg, Message msg) {

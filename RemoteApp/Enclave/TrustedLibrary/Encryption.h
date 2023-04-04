@@ -10,6 +10,9 @@
 #include <openssl/pem.h>
 // #include <openssl/sha
 #include <string>
+#include <sgx_trts.h>
+
+#include "Utils.h"
 
 char* base64_encode(const unsigned char *input, int length);
 unsigned char* base64_decode(const char* input, int length);

@@ -36,10 +36,14 @@ SGX_MODE ?= HW
 SGX_ARCH ?= x64
 SGX_DEBUG ?= 1
 
+# SGXSSL_DIR ?= $(PROJ_DIR)/sgxssl
 SGXSSL_DIR ?= /opt/intel/sgxssl
+# SGXSSL_PKG_PATH := $(SGXSSL_DIR)/Linux/package
 SGXSSL_PKG_PATH := $(SGXSSL_DIR)
 
+
 include $(SGX_SDK)/buildenv.mk
+
 
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
@@ -93,10 +97,10 @@ endif
 
 U_TLS_Library_Name := sgx_utls
 
-App_Cpp_Files := App/App.cpp $(wildcard App/Edger8rSyntax/*.cpp) $(wildcard App/TrustedLibrary/*.cpp) $(wildcard App/UntrustedLibrary/*.cpp)
-App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include
+# App_Cpp_Files := App/App.cpp $(wildcard App/Edger8rSyntax/*.cpp) $(wildcard App/TrustedLibrary/*.cpp) $(wildcard App/UntrustedLibrary/*.cpp)
+# App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include
 
-App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
+# App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
@@ -116,11 +120,11 @@ SGXSSL_U_Link_Libraries := -L$(SGXSSL_PKG_PATH)/lib64 -Wl,--whole-archive -l$(SG
 SGXTLS_U_Link_Libraries := -lsgx_utls
 
 App_Cpp_Flags := $(App_C_Flags)
-App_Link_Flags := $(SGXSSL_U_Link_Libraries) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -l$(UaeService_Library_Name) -lcrypto -lpthread 
+App_Link_Flags := $(SGXSSL_U_Link_Libraries) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -l$(UaeService_Library_Name) -lcrypto -lssl -lpthread 
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
-App_Name := app
+# App_Name := app
 
 ######## Enclave Settings ########
 
@@ -208,97 +212,98 @@ endif
 
 
 .PHONY: all target run
-all: .config_$(Build_Mode)_$(SGX_ARCH)
-	@$(MAKE) target
-
-ifeq ($(Build_Mode), HW_RELEASE)
-target:  $(App_Name) $(Enclave_Name)
-	@echo "The project has been built in release hardware mode."
-	@echo "Please sign the $(Enclave_Name) first with your signing key before you run the $(App_Name) to launch and access the enclave."
-	@echo "To sign the enclave use the command:"
-	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <your key> -enclave $(Enclave_Name) -out <$(Signed_Enclave_Name)> -config $(Enclave_Config_File)"
-	@echo "You can also sign the enclave using an external signing tool."
-	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
+# all: .config_$(Build_Mode)_$(SGX_ARCH) %.o
+all: TrustGlass_t.h TrustGlass_t.c TrustGlass_t.o
 
 
-else
-target: $(App_Name) $(Signed_Enclave_Name)
-ifeq ($(Build_Mode), HW_DEBUG)
-	@echo "The project has been built in debug hardware mode."
-else ifeq ($(Build_Mode), SIM_DEBUG)
-	@echo "The project has been built in debug simulation mode."
-else ifeq ($(Build_Mode), HW_PRERELEASE)
-	@echo "The project has been built in pre-release hardware mode."
-else ifeq ($(Build_Mode), SIM_PRERELEASE)
-	@echo "The project has been built in pre-release simulation mode."
-else
-	@echo "The project has been built in release simulation mode."
-endif
+# ifeq ($(Build_Mode), HW_RELEASE)
+# target:  $(App_Name) $(Enclave_Name)
+# 	@echo "The project has been built in release hardware mode."
+# 	@echo "Please sign the $(Enclave_Name) first with your signing key before you run the $(App_Name) to launch and access the enclave."
+# 	@echo "To sign the enclave use the command:"
+# 	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <your key> -enclave $(Enclave_Name) -out <$(Signed_Enclave_Name)> -config $(Enclave_Config_File)"
+# 	@echo "You can also sign the enclave using an external signing tool."
+# 	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
 
-endif
 
-run: all
-ifneq ($(Build_Mode), HW_RELEASE)
-	@$(CURDIR)/$(App_Name)
-	@echo "RUN  =>  $(App_Name) [$(SGX_MODE)|$(SGX_ARCH), OK]"
-endif
+# else
+# target: $(App_Name) $(Signed_Enclave_Name)
+# ifeq ($(Build_Mode), HW_DEBUG)
+# 	@echo "The project has been built in debug hardware mode."
+# else ifeq ($(Build_Mode), SIM_DEBUG)
+# 	@echo "The project has been built in debug simulation mode."
+# else ifeq ($(Build_Mode), HW_PRERELEASE)
+# 	@echo "The project has been built in pre-release hardware mode."
+# else ifeq ($(Build_Mode), SIM_PRERELEASE)
+# 	@echo "The project has been built in pre-release simulation mode."
+# else
+# 	@echo "The project has been built in release simulation mode."
+# endif
+
+# endif
+
+# run: all
+# ifneq ($(Build_Mode), HW_RELEASE)
+# 	@$(CURDIR)/$(App_Name)
+# 	@echo "RUN  =>  $(App_Name) [$(SGX_MODE)|$(SGX_ARCH), OK]"
+# endif
 
 .config_$(Build_Mode)_$(SGX_ARCH):
-	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.*
+	@rm -f .config_* $(Enclave_Name) $(Signed_Enclave_Name) $(Enclave_Cpp_Objects) Enclave/Enclave_t.*
 	@touch .config_$(Build_Mode)_$(SGX_ARCH)
 
 ######## App Objects ########
 
-App/Enclave_u.h: $(SGX_EDGER8R) Enclave/Enclave.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
-	@echo "GEN  =>  $@"
+# App/Enclave_u.h: $(SGX_EDGER8R) Enclave/Enclave.edl
+# 	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path ../Enclave/TrustedLibrary --search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
+# 	@echo "GEN  =>  $@"
 
-App/Enclave_u.c: App/Enclave_u.h
+# App/Enclave_u.c: App/Enclave_u.h
 
-App/Enclave_u.o: App/Enclave_u.c
-	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
-	@echo "CC   <=  $<"
+# App/Enclave_u.o: App/Enclave_u.c
+# 	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+# 	@echo "CC   <=  $<"
 
-App/%.o: App/%.cpp  App/Enclave_u.h
-	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
-	@echo "CXX  <=  $<"
+# App/%.o: App/%.cpp  App/Enclave_u.h
+# 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
+# 	@echo "CXX  <=  $<"
 
-$(App_Name): App/Enclave_u.o $(App_Cpp_Objects)
-	@$(CXX) $^ -o $@ $(App_Link_Flags)
-	@echo "LINK =>  $@"
+# $(App_Name): App/Enclave_u.o $(App_Cpp_Objects)
+# 	@$(CXX) $^ -o $@ $(App_Link_Flags)
+# 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
 
-Enclave/Enclave_t.h: $(SGX_EDGER8R) Enclave/Enclave.edl
-	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/Enclave.edl \
-	--search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
+TrustGlass_t.h: $(SGX_EDGER8R) TrustGlass.edl
+	$(SGX_EDGER8R) --trusted TrustGlass.edl \
+	--search-path ./ --search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
 
 	@echo "GEN  =>  $@"
 
-Enclave/Enclave_t.c: Enclave/Enclave_t.h
+TrustGlass_t.c: TrustGlass_t.h
 
-Enclave/Enclave_t.o: Enclave/Enclave_t.c
+TrustGlass_t.o: TrustGlass_t.c
 	@$(CC) $(SGX_COMMON_CFLAGS) $(Enclave_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-Enclave/%.o: Enclave/%.cpp Enclave/Enclave_t.h
+%.o: %.cpp TrustGlass_t.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) -include "tsgxsslio.h" $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(Enclave_Name): Enclave/Enclave_t.o $(Enclave_Cpp_Objects)
-	@$(CXX) $^ -o $@ $(Enclave_Link_Flags)
-	@echo "LINK =>  $@"
+# $(Enclave_Name): Enclave/Enclave_t.o $(Enclave_Cpp_Objects)
+# 	@$(CXX) $^ -o $@ $(Enclave_Link_Flags)
+# 	@echo "LINK =>  $@"
 
-$(Signed_Enclave_Name): $(Enclave_Name)
-ifeq ($(wildcard $(Enclave_Test_Key)),)
-	@echo "There is no enclave test key<Enclave_private_test.pem>."
-	@echo "The project will generate a key<Enclave_private_test.pem> for test."
-	@openssl genrsa -out $(Enclave_Test_Key) -3 3072
-endif
-	@$(SGX_ENCLAVE_SIGNER) sign -key $(Enclave_Test_Key) -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
-	@echo "SIGN =>  $@"
+# $(Signed_Enclave_Name): $(Enclave_Name)
+# ifeq ($(wildcard $(Enclave_Test_Key)),)
+# 	@echo "There is no enclave test key<Enclave_private_test.pem>."
+# 	@echo "The project will generate a key<Enclave_private_test.pem> for test."
+# 	@openssl genrsa -out $(Enclave_Test_Key) -3 3072
+# endif
+# 	@$(SGX_ENCLAVE_SIGNER) sign -key $(Enclave_Test_Key) -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
+# 	@echo "SIGN =>  $@"
 
 .PHONY: clean
 
 clean:
-	@rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.* $(Enclave_Test_Key)
+	@rm -f .config_* TrustGlass_t.*

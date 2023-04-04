@@ -1,5 +1,4 @@
-#include "../Enclave.h"
-// #include "Encryption.h"
+#include "Encryption.h"
 // #include <string>
 
 

@@ -1,0 +1,10 @@
+/* Utils.edl - EDL sample for trusted C library. */
+
+enclave {  
+    from "sgx_tsgxssl.edl" import *;
+    from "sgx_pthread.edl" import *;
+
+    untrusted {
+        void ocall_debug_print([in, string] const char *str);
+    };
+};

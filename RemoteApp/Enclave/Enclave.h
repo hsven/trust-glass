@@ -36,48 +36,11 @@
 #include <stdlib.h>
 #include <vector>
 #include <sgx_trts.h>
-#include "TrustedLibrary/Encryption.h"
+#include "TrustedLibrary/TrustGlass_t.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-struct MessageContent {
-    std::string header;
-    std::string message;
-    int freshnessToken;
-    std::string jsonMessage = "";
-
-    std::string generate_final() {
-        return "{\"hdr\":\"" + header + 
-            "\",\"msg\":\"" + message + 
-            "\",\"fresh\":" + std::to_string(freshnessToken) +
-            "}";
-    }
-};
-
-struct ResponseMessage {
-    std::string content;
-    std::string digitalSignature;
-    //Freshness token is incorporated inside the message, 
-    // otherwise there's no obvious way to prevent tampering on it
-    std::string finalMessage = "";
-
-    char* generate_final() {
-        finalMessage = "{\"msg\":\"" + content + 
-            "\",\"sig\":\"" + digitalSignature +
-            "\"}";
-
-        return finalMessage.data();
-    }
-
-    size_t total_length() {
-        return finalMessage.size();
-    }
-};
-
-
-int printf(const char* fmt, ...);
 
 #if defined(__cplusplus)
 }

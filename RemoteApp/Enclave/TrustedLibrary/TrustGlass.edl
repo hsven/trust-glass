@@ -1,0 +1,20 @@
+/* TrustGlass.edl - EDL API of TrustGlass TEE fuctionality. */
+
+enclave {
+    from "sgx_tsgxssl.edl" import *;
+    from "sgx_pthread.edl" import *;
+    from "Encryption.edl" import *;
+
+    trusted {
+        public void ecall_receive_input([in, string] const char* in);
+        public void ecall_receive_key_pair([in, string] const char* in);
+        public void ecall_receive_peer_key([in, string] const char* in);
+        public void ecall_initial_enclave_setup(void);
+    };
+
+    untrusted {
+        void ocall_print_string([in, string] const char *str);
+        void ocall_print_qr_code([in, string] const char *message);
+        void ocall_send_response([in, string] const char *message, size_t len);
+    };
+};

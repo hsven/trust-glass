@@ -38,9 +38,54 @@
 #include "TrustedLibrary/ResponseManager.cpp"
 #include "TrustedLibrary/TrustGlass.h"
 
-
+TrustGlass* trustGlass = NULL;
 ResponseManager resManager = ResponseManager();
 
+int printf(const char* fmt, ...)
+{
+    char buf[BUFSIZ] = { '\0' };
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZ, fmt, ap);
+    va_end(ap);
+    ocall_debug_print(buf);
+    // ocall_print_string(buf);
+    // ocall_print_qr_code(buf);
+    return (int)strnlen(buf, BUFSIZ - 1) + 1;
+}
+
+ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
+    //Generate Response Message
+    ResponseMessage* response = new ResponseMessage();
+    MessageContent* content = new MessageContent();
+    content->header = headerMsg;
+    content->message = mainMsg;
+    content->freshnessToken = resManager.messageCounter;
+    std::string contentString = content->generate_final();
+
+    //Prepare Response    
+    response->content = base64_encode((unsigned char*) contentString.data(), contentString.length());
+
+    //If message requires security properties
+    if (withSecure) {
+        response->content = trustGlass->encrypt_string(contentString).data();
+        response->digitalSignature = trustGlass->sign_string(contentString.c_str());
+    }
+
+    //Prints for DEBUG purposes
+    printf("Message: %s\n", response->content.c_str());
+    printf("Signature: %s\n", response->digitalSignature.c_str());
+    printf("Freshess: %d\n", resManager.messageCounter);
+
+    resManager.messageCounter++;
+    return response;
+}
+
+void send_response(std::string header, std::string content, bool isSecure) {
+    ResponseMessage* response = create_response(header, content, isSecure);
+    char* finalMsg = response->generate_final();
+    ocall_send_response(finalMsg, strlen(finalMsg));
+}
 
 void generate_welcome_message() {
     resManager.userMenu.clear();
@@ -62,9 +107,8 @@ void generate_welcome_message() {
     };
 
     std::string resStr = "Welcome!\nType:\n- \'" + opt1 + "\' to enter Menu 1.\n- \'" + opt2 + "\' to enter Menu 2.\n- \'" + opt3 + "\' to enter echo mode.";
-    ResponseMessage* response = create_response("MSG", resStr, true);
-    char* finalMsg = response->generate_final();
-    ocall_send_response(finalMsg, strlen(finalMsg));
+    
+    send_response("MSG", resStr, true);
 }
 
 
@@ -74,7 +118,41 @@ void ecall_hello_world(void)
     printf("%s", hello);
 }
 
+void ecall_init_TrustGlass() {
+    trustGlass = new TrustGlass();
+}
+
+
+void ecall_receive_key_pair(const char* in) {
+    printf("%s\n", in);
+    trustGlass->set_key_pair(in);
+}
+
+
+void ecall_receive_peer_key(const char* in) {
+    printf("%s\n", in);
+    trustGlass->set_peer_key(in);
+}
+
+
+void ecall_start_setup() {
+    std::string pubKey = trustGlass->retrieve_public_EC_session_key();
+    if(pubKey.empty()) {
+        send_response("ERROR", "Setup: Failed to retrieve public EC key", false);
+        return;
+    }
+
+    send_response("HANDSHAKE", pubKey, false);
+}
+
 void ecall_finish_setup(const char* encodedPeerKey) {
-    derive_secret_key(encodedPeerKey);
+    if(!trustGlass->derive_secret_key(encodedPeerKey)) {
+        send_response("ERROR", "Setup: Faied to process the received key", false);
+        return;
+    }
     generate_welcome_message();
+}
+
+void ecall_receive_input(const char* in) {
+    send_response("MSG", resManager.prepare_response(in), true);
 }

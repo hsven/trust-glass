@@ -19,22 +19,18 @@ enum SubMenuOptions {
 class ResponseManager {
     MenuOptions currentOption = MenuOptions::NO_MENU_OPTION;
 
+    public:
+    int messageCounter = 0;
     //This map allows the TEE to keep track of the options the user
     //has at their disposal during interactions
-    public:
     std::map<std::string, MenuOptions> userMenu = {};
-        // {"1", "Opt1"},
-        // {"2", "Opt2"},
+
 
     /* 
     * prepare_response: 
     *   Creates an adequate response according to the input command.
     */
     std::string prepare_response(std::string input) {
-        // for (auto i : userMenu)
-        // {
-        //     printf("%s:::%d\n", i.first, i.second);
-        // }
         switch (currentOption)
         {  
             //Let's assume example 5 is an echo mode
@@ -64,13 +60,10 @@ class ResponseManager {
             }
         } else {
             return "Invalid selection and/or input, please try again.";       
-            // return response;
         }
 
         return "ERROR when preparing response";
     }
-
-
 };
 
 

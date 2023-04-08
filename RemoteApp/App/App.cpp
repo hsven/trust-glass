@@ -216,6 +216,9 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
  
+    // ecall_hello();
+    ecall_init();
+
     ecall_send_key();
 
     SSL_CTX *ssl_ctx = NULL;
@@ -262,7 +265,7 @@ int SGX_CDECL main(int argc, char *argv[])
             /* Echo loop */
             while (true) {
                 // /* Get message from client; will fail if client closes connection */
-                std::string in = receive_message(ssl);
+                in = receive_message(ssl);
                 /* Look for kill switch */
                 std::cout << "Received via SSL: " << in << std::endl;
 

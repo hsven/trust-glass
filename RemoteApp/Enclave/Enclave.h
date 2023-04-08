@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <vector>
 #include <sgx_trts.h>
-#include "TrustedLibrary/TrustGlass_t.h"
 
 #if defined(__cplusplus)
 extern "C" {

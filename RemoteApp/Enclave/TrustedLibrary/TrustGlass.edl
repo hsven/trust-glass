@@ -6,10 +6,6 @@ enclave {
     from "Encryption.edl" import *;
 
     trusted {
-        public void ecall_receive_input([in, string] const char* in);
-        public void ecall_receive_key_pair([in, string] const char* in);
-        public void ecall_receive_peer_key([in, string] const char* in);
-        public void ecall_initial_enclave_setup(void);
     };
 
     untrusted {

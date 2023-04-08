@@ -13,6 +13,14 @@ void ecall_hello() {
         abort();
 }
 
+void ecall_init() {
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    ret = ecall_init_TrustGlass(global_eid);
+    if (ret != SGX_SUCCESS)
+        abort();
+}
+
 void ecall_send_input(std::string in) {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -46,7 +54,7 @@ void ecall_send_key() {
 void ecall_handshake_phase1() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    ret = ecall_initial_enclave_setup(global_eid);
+    ret = ecall_start_setup(global_eid);
     if (ret != SGX_SUCCESS)
         abort();
 }

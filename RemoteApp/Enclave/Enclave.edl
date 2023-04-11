@@ -41,7 +41,7 @@ enclave {
      *  [*]: implies to import all functions.
      */
 
-    from "TrustedLibrary/TrustGlass.edl" import *;
+    from "TrustedLibrary/ResponseManager.edl" import *;
 
     trusted {
         public void ecall_hello_world(void);

@@ -144,7 +144,7 @@ SGX_TVL_Library_Name := sgx_dcap_tvl
 
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/Edger8rSyntax/*.cpp) $(wildcard Enclave/TrustedLibrary/*.cpp)
+Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/Edger8rSyntax/*.cpp) $(wildcard Enclave/TrustedLibrary/*.cpp) $(wildcard Enclave/TrustedLibrary/TrustGlass_TEE/*.cpp)
 Enclave_Include_Paths := -IInclude -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
 Enclave_Include_Paths += -I$(SGXSSL_PKG_PATH)/include
 
@@ -253,7 +253,10 @@ endif
 ######## App Objects ########
 
 App/Enclave_u.h: $(SGX_EDGER8R) Enclave/Enclave.edl
-	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path ../Enclave/TrustedLibrary --search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
+	@cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl \
+	--search-path ../Enclave --search-path ../Enclave/TrustedLibrary \
+	--search-path ../Enclave/TrustedLibrary/TrustGlass_TEE \
+	--search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
 	@echo "GEN  =>  $@"
 
 App/Enclave_u.c: App/Enclave_u.h
@@ -274,7 +277,9 @@ $(App_Name): App/Enclave_u.o $(App_Cpp_Objects)
 
 Enclave/Enclave_t.h: $(SGX_EDGER8R) Enclave/Enclave.edl
 	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/Enclave.edl \
-	--search-path ../Enclave --search-path ../Enclave/TrustedLibrary --search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
+	--search-path ../Enclave --search-path ../Enclave/TrustedLibrary \
+	--search-path ../Enclave/TrustedLibrary/TrustGlass_TEE \
+	--search-path $(SGX_SDK)/include --search-path $(SGXSSL_PKG_PATH)/include
 
 	@echo "GEN  =>  $@"
 

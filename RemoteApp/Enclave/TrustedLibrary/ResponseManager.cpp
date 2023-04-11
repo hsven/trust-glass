@@ -1,5 +1,6 @@
 #include <map>
 #include <string>
+#include "TrustGlass_TEE/TrustGlass.h"
 
 enum MenuOptions {
     NO_MENU_OPTION,
@@ -16,11 +17,11 @@ enum SubMenuOptions {
     DENY,
 };
 
+
 class ResponseManager {
     MenuOptions currentOption = MenuOptions::NO_MENU_OPTION;
 
     public:
-    int messageCounter = 0;
     //This map allows the TEE to keep track of the options the user
     //has at their disposal during interactions
     std::map<std::string, MenuOptions> userMenu = {};
@@ -65,5 +66,3 @@ class ResponseManager {
         return "ERROR when preparing response";
     }
 };
-
-

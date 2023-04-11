@@ -2,19 +2,19 @@
 
 TrustGlass::TrustGlass() {
     //Prepare keys
-    ecgroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    ecGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     generate_ec_key_pair(&keyPair);
 }
 
 void TrustGlass::set_key_pair(const char* in) {
-    longTermKeyPair_pkey = EVP_PKEY_new();
+    longTermKeyPair = EVP_PKEY_new();
 
     BIO* bo = BIO_new(BIO_s_mem());
     BIO_write(bo, in, strlen(in));
 
-    if (PEM_read_bio_PrivateKey(bo, &longTermKeyPair_pkey, NULL, NULL) == NULL) {
+    if (PEM_read_bio_PrivateKey(bo, &longTermKeyPair, NULL, NULL) == NULL) {
         BIO_free(bo);
-        EVP_PKEY_free(longTermKeyPair_pkey);
+        EVP_PKEY_free(longTermKeyPair);
         return;
     }
 
@@ -22,14 +22,14 @@ void TrustGlass::set_key_pair(const char* in) {
 }
 
 void TrustGlass::set_peer_key(const char* in) {
-    longTermPeerKey_pkey = EVP_PKEY_new();
+    longTermPeerKey = EVP_PKEY_new();
 
     BIO* bo = BIO_new(BIO_s_mem());
     BIO_write(bo, in, strlen(in));
 
-    if (PEM_read_bio_PUBKEY(bo, &longTermPeerKey_pkey, NULL, NULL) == NULL) {
+    if (PEM_read_bio_PUBKEY(bo, &longTermPeerKey, NULL, NULL) == NULL) {
         BIO_free(bo);
-        EVP_PKEY_free(longTermPeerKey_pkey);
+        EVP_PKEY_free(longTermPeerKey);
         return;
     }
 
@@ -49,7 +49,7 @@ std::string TrustGlass::retrieve_public_EC_session_key() {
     BN_CTX *ctx;
     ctx = BN_CTX_new();
     char* result = NULL;
-    result = EC_POINT_point2hex(ecgroup, pub, POINT_CONVERSION_UNCOMPRESSED, ctx);
+    result = EC_POINT_point2hex(ecGroup, pub, POINT_CONVERSION_UNCOMPRESSED, ctx);
     if (strcmp(result, "") == 0) {
         EC_KEY_free(keyPair);
         return "";
@@ -90,5 +90,32 @@ std::string TrustGlass::encrypt_string(std::string contentString) {
 }
 
 std::string TrustGlass::sign_string(std::string contentString) {
-    return sign_message(contentString.c_str(), longTermKeyPair_pkey);
+    return sign_message(contentString.c_str(), longTermKeyPair);
+}
+
+ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
+    //Generate Response Message
+    ResponseMessage* response = new ResponseMessage();
+    MessageContent* content = new MessageContent();
+    content->header = headerMsg;
+    content->message = mainMsg;
+    content->freshnessToken = messageCounter;
+    std::string contentString = content->generate_final();
+
+    //Prepare Response    
+    response->content = base64_encode((unsigned char*) contentString.data(), contentString.length());
+
+    //If message requires security properties
+    if (withSecure) {
+        response->content = encrypt_string(contentString).data();
+        response->digitalSignature = sign_string(contentString.c_str());
+    }
+
+    // //Prints for DEBUG purposes
+    // printf("Message: %s\n", response->content.c_str());
+    // printf("Signature: %s\n", response->digitalSignature.c_str());
+    // printf("Freshess: %d\n", messageCounter);
+
+    messageCounter++;
+    return response;
 }

@@ -1,51 +1,18 @@
 #include "Encryption.h"
-
-struct MessageContent {
-    std::string header;
-    std::string message;
-    //Freshness token is incorporated inside the message, 
-    // otherwise there's no obvious way to prevent tampering on it
-    int freshnessToken;
-    std::string jsonMessage = "";
-
-    std::string generate_final() {
-        return "{\"hdr\":\"" + header + 
-            "\",\"msg\":\"" + message + 
-            "\",\"fresh\":" + std::to_string(freshnessToken) +
-            "}";
-    }
-};
-
-struct ResponseMessage {
-    std::string content;
-    std::string digitalSignature;
-
-    std::string finalMessage = "";
-
-    char* generate_final() {
-        finalMessage = "{\"msg\":\"" + content + 
-            "\",\"sig\":\"" + digitalSignature +
-            "\"}";
-
-        return finalMessage.data();
-    }
-
-    size_t total_length() {
-        return finalMessage.size();
-    }
-};
+#include "ResponseMessage.h"
 
 
 class TrustGlass {
-    EVP_PKEY* longTermKeyPair_pkey = NULL;
-    EVP_PKEY* longTermPeerKey_pkey = NULL;
+    EVP_PKEY* longTermKeyPair = NULL;
+    EVP_PKEY* longTermPeerKey = NULL;
 
-    EC_GROUP *ecgroup = NULL;
+    EC_GROUP *ecGroup = NULL;
     EC_KEY *keyPair = NULL;
     EC_POINT *peerPoint = NULL;
     unsigned char* secretKey = NULL;
 
     public:
+    int messageCounter = 0;
     std::string currentMessage = "";
 
     TrustGlass();
@@ -105,16 +72,16 @@ class TrustGlass {
      * Return: Base64 encoded signature if the operation was successful, empty string otherwise 
     */
     std::string sign_string(std::string contentString);
-};
 
-/**
- * Creates a ResponseMessage object
- * 
- * Param:
- * - 'headerMsg' = header to include in the object
- * - 'mainMsg' = message to include in the object
- * - 'withSecure' = applies the necessary encryption and signing of the message
- * 
- * Return: resulting ResponseMessage object
-*/
-ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure);
+    /**
+     * Creates a ResponseMessage object
+     * 
+     * Param:
+     * - 'headerMsg' = header to include in the object
+     * - 'mainMsg' = message to include in the object
+     * - 'withSecure' = applies the necessary encryption and signing of the message
+     * 
+     * Return: resulting ResponseMessage object
+    */
+    ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure);
+};

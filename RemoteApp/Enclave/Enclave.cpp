@@ -36,7 +36,6 @@
 #include <string>
 
 #include "TrustedLibrary/ResponseManager.cpp"
-#include "TrustedLibrary/TrustGlass.h"
 
 TrustGlass* trustGlass = NULL;
 ResponseManager resManager = ResponseManager();
@@ -54,35 +53,8 @@ int printf(const char* fmt, ...)
     return (int)strnlen(buf, BUFSIZ - 1) + 1;
 }
 
-ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
-    //Generate Response Message
-    ResponseMessage* response = new ResponseMessage();
-    MessageContent* content = new MessageContent();
-    content->header = headerMsg;
-    content->message = mainMsg;
-    content->freshnessToken = resManager.messageCounter;
-    std::string contentString = content->generate_final();
-
-    //Prepare Response    
-    response->content = base64_encode((unsigned char*) contentString.data(), contentString.length());
-
-    //If message requires security properties
-    if (withSecure) {
-        response->content = trustGlass->encrypt_string(contentString).data();
-        response->digitalSignature = trustGlass->sign_string(contentString.c_str());
-    }
-
-    //Prints for DEBUG purposes
-    printf("Message: %s\n", response->content.c_str());
-    printf("Signature: %s\n", response->digitalSignature.c_str());
-    printf("Freshess: %d\n", resManager.messageCounter);
-
-    resManager.messageCounter++;
-    return response;
-}
-
 void send_response(std::string header, std::string content, bool isSecure) {
-    ResponseMessage* response = create_response(header, content, isSecure);
+    ResponseMessage* response = trustGlass->create_response(header, content, isSecure);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }

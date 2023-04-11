@@ -30,12 +30,11 @@
  */
 
 
-/* Libc.edl - EDL sample for trusted C library. */
+/* ResponseManager.edl - EDL sample for trusted C library. */
 
 enclave {
     
     
-    from "sgx_tsgxssl.edl" import *;
-    from "sgx_pthread.edl" import *;
+    from "TrustGlass_TEE/TrustGlass.edl" import *;
 
 };

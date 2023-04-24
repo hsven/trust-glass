@@ -8,3 +8,4 @@
 **/*.csr
 **/*.srl
 *.svg
+**/__pycache__/*

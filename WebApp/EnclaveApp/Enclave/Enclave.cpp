@@ -53,8 +53,8 @@ int printf(const char* fmt, ...)
     return (int)strnlen(buf, BUFSIZ - 1) + 1;
 }
 
-void send_response(std::string header, std::string content, bool isSecure) {
-    ResponseMessage* response = trustGlass->create_response(header, content, isSecure);
+void send_response(std::string header, std::string content, bool signWithSessionKeys) {
+    ResponseMessage* response = trustGlass->create_response(header, content, signWithSessionKeys);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }
@@ -124,7 +124,7 @@ void ecall_verify_otp_reponse(const char* in) {
         generate_welcome_message();
         // send_response("OTP", "OTP Success", true);
     else
-        send_response("ERROR", "OTP ERROR - Response did not match challenge", true);
+        send_response("ERROR", "OTP ERROR - Response did not match challenge", false);
 }
 
 void ecall_start_setup() {

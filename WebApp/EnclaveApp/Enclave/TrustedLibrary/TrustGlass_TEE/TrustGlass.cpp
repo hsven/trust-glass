@@ -4,6 +4,16 @@ TrustGlass::TrustGlass() {
     //Prepare keys
     ecGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     generate_ec_key_pair(&keyPair);
+
+    
+    PKEY_keyPair = EVP_PKEY_new();
+
+    if (!EVP_PKEY_assign_EC_KEY(PKEY_keyPair, keyPair))
+    {
+        EVP_PKEY_free(PKEY_keyPair);
+        // return NULL;
+        abort();
+    }
 }
 
 void TrustGlass::set_key_pair(const char* in) {
@@ -155,7 +165,12 @@ std::string TrustGlass::sign_string(std::string contentString) {
     return sign_message(contentString.c_str(), longTermKeyPair);
 }
 
-ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, bool withSecure) {
+std::map<char, char> TrustGlass::create_random_keyboard() {
+    latestKeyboard = generate_randomized_keyboard();
+    return latestKeyboard;
+}
+
+ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, bool signWithSessionKeys) {
     //Generate Response Message
     ResponseMessage* response = new ResponseMessage();
     MessageContent* content = new MessageContent();
@@ -168,10 +183,25 @@ ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string 
     response->content = base64_encode((unsigned char*) contentString.data(), contentString.length());
 
     //If message requires security properties
-    if (withSecure) {
+    if (signWithSessionKeys) {
         response->content = encrypt_string(contentString).data();
-        response->digitalSignature = sign_string(contentString.c_str());
+
+        EVP_PKEY* pKey = EVP_PKEY_new();
+
+        // if (!EVP_PKEY_assign_EC_KEY(pKey, keyPair))
+        // {
+        //     EVP_PKEY_free(pKey);
+        //     return NULL;
+        // }
+
+        response->digitalSignature = sign_message(contentString.c_str(), PKEY_keyPair);
+        EVP_PKEY_free(pKey);
     }
+    else {
+        response->digitalSignature = sign_message(contentString.c_str(), longTermKeyPair);  
+    }
+
+    response->signedWithSession = signWithSessionKeys;
 
     // //Prints for DEBUG purposes
     // printf("Message: %s\n", response->content.c_str());

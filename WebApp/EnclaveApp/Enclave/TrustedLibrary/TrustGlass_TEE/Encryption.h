@@ -13,7 +13,7 @@
 #include <sgx_trts.h>
 
 #include <algorithm>
-
+#include <map>
 /**
  * Encodes a binary string of specified length into a Base64 string
  * 
@@ -146,3 +146,5 @@ bool rsa_encryption(std::string data, RSA* pkey);
  * Return: string with randomly selected characters
 */
 std::string generate_random_string(const int len);
+
+std::map<char, char> generate_randomized_keyboard();

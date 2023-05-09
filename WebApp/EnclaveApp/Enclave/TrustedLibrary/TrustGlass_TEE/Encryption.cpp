@@ -262,3 +262,29 @@ std::string generate_random_string(const int len) {
     
     return tmp_s;
 }
+
+std::map<char, char> generate_randomized_keyboard() {
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+
+    std::string availableChars =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+
+    std::map<char, char> keyboardMapping;
+    for (int i = 0; i < strlen(alphanum); i++)
+    {
+        char n[12];
+        sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
+                        sizeof(n));
+
+        int pos = (*(char*)n) % (availableChars.size() - 1);
+        keyboardMapping[alphanum[i]] = availableChars.at(pos);
+        availableChars.erase(remove(availableChars.begin(), availableChars.end(), availableChars.at(pos)), availableChars.end());
+    }
+
+    return keyboardMapping;
+}

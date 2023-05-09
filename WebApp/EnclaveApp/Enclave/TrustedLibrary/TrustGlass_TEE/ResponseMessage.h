@@ -23,11 +23,13 @@ class ResponseMessage {
         std::string digitalSignature;
 
         std::string finalMessage = "";
+        bool signedWithSession = false;
     
         char* generate_final() {
             finalMessage = "{\"msg\":\"" + content + 
                 "\",\"sig\":\"" + digitalSignature +
-                "\"}";
+                "\",\"ses\":" + (signedWithSession ? "true" : "false") +
+                "}";
 
             return finalMessage.data();
         }

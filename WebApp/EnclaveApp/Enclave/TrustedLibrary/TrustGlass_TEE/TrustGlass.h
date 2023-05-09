@@ -8,15 +8,17 @@ class TrustGlass {
     EVP_PKEY* longTermPeerKey = NULL;
     char* otpSharedKey = NULL;
     std::string latestOTP = "";
-
+    std::map<char, char> latestKeyboard;
     EC_GROUP *ecGroup = NULL;
     EC_KEY *keyPair = NULL;
+    EVP_PKEY* PKEY_keyPair = NULL;
     EC_POINT *peerPoint = NULL;
     unsigned char* secretKey = NULL;
 
     public:
     int messageCounter = 0;
     std::string currentMessage = "";
+
 
     TrustGlass();
 
@@ -82,6 +84,9 @@ class TrustGlass {
     */
     std::string sign_string(std::string contentString);
 
+    std::map<char, char> create_random_keyboard();
+
+
     /**
      * Creates a ResponseMessage object
      * 
@@ -92,5 +97,5 @@ class TrustGlass {
      * 
      * Return: resulting ResponseMessage object
     */
-    ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool withSecure);
+    ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool signWithSessionKeys);
 };

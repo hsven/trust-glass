@@ -2,6 +2,7 @@ package pt.ulisboa.tecnico.trustglass.java;
 
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -20,5 +21,11 @@ public class QRTextActivity extends AppCompatActivity {
         textView = findViewById(R.id.textView);
         textView.setMovementMethod(new ScrollingMovementMethod());
         textView.setText(getIntent().getStringExtra("qrText"));
+    }
+
+    @Override
+    protected void onDestroy() {
+//        Log.d()
+        super.onDestroy();
     }
 }

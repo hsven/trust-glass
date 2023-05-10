@@ -18,6 +18,8 @@ package pt.ulisboa.tecnico.trustglass.java.barcodescanner;
 
 import android.graphics.Point;
 import android.util.Log;
+import android.widget.ToggleButton;
+
 import androidx.annotation.NonNull;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.barcode.BarcodeScanner;
@@ -40,11 +42,16 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
   private final BarcodeScanner barcodeScanner;
 
   private final LivePreviewActivity livePreviewContext;
-  private EncryptionManager encryptionManager;
+  private ToggleButton scanToggle;
 
-  public BarcodeScannerProcessor(LivePreviewActivity context, EncryptionManager encManager) {
+  private EncryptionManager encryptionManager;
+  public boolean isCurrentlyProcessingCode = false;
+
+
+  public BarcodeScannerProcessor(LivePreviewActivity context, EncryptionManager encManager, ToggleButton toggleButton) {
     super(context);
     encryptionManager = encManager;
+    scanToggle = toggleButton;
 
     livePreviewContext = context;
     // Note that if you know which format of barcode your app is dealing with, detection will be
@@ -69,8 +76,16 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
   @Override
   protected void onSuccess(
       @NonNull List<Barcode> barcodes, @NonNull GraphicOverlay graphicOverlay) {
+    if (!scanToggle.isChecked()) {
+//      Log.v(MANUAL_TESTING_LOG, "No barcode has been detected");
+      return;
+    }
     if (barcodes.isEmpty()) {
       Log.v(MANUAL_TESTING_LOG, "No barcode has been detected");
+    }
+    if (isCurrentlyProcessingCode) {
+      Log.v(MANUAL_TESTING_LOG, "A barcode is already being processed");
+      return;
     }
     Log.d("Count", String.valueOf(barcodes.size()));
     for (int i = 0; i < barcodes.size(); ++i) {
@@ -79,6 +94,8 @@ public class BarcodeScannerProcessor extends VisionProcessorBase<List<Barcode>> 
 
       String msgToDisplay = encryptionManager.processMessage(barcode.getDisplayValue());
       livePreviewContext.displayQRText(msgToDisplay);
+      isCurrentlyProcessingCode = true;
+      return;
     }
   }
 

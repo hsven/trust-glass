@@ -6,6 +6,18 @@
     android:layout_height="match_parent"
     android:keepScreenOn="true">
 
+  <ToggleButton
+      android:id="@+id/scanToggle"
+      android:layout_width="100dp"
+      android:layout_height="100dp"
+      android:text="Scan QR"
+      android:textOff=" Scan QR OFF"
+      android:textOn="Scan QR ON"
+      android:textSize="20sp"
+      app:layout_constraintBottom_toBottomOf="@+id/preview_view"
+      app:layout_constraintEnd_toEndOf="@+id/preview_view"
+      app:layout_constraintStart_toStartOf="@+id/preview_view" />
+
   <pt.ulisboa.tecnico.trustglass.CameraSourcePreview
       android:id="@+id/preview_view"
       android:layout_width="match_parent"
@@ -47,6 +59,17 @@
         android:textOff=""
         android:textOn="" />
 
+    <TextView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/log_button"
+        android:layout_gravity="bottom|center"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="20dp"
+        android:contentDescription="@string/menu_item_log"
+        android:text="LOG" />
+
     <ImageView
         android:id="@+id/settings_button"
         android:layout_width="wrap_content"
@@ -55,6 +78,8 @@
         android:contentDescription="@string/menu_item_settings"
         android:padding="12dp"
         android:src="@drawable/ic_settings_white_24dp" />
+
+
   </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

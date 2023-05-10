@@ -23,9 +23,11 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
@@ -43,6 +45,7 @@ import pt.ulisboa.tecnico.trustglass.GraphicOverlay;
 import pt.ulisboa.tecnico.trustglass.R;
 import pt.ulisboa.tecnico.trustglass.java.barcodescanner.BarcodeScannerProcessor;
 import pt.ulisboa.tecnico.trustglass.java.encryption.EncryptionManager;
+import pt.ulisboa.tecnico.trustglass.preference.LogsActivity;
 import pt.ulisboa.tecnico.trustglass.preference.SettingsActivity;
 
 /** Live preview demo for ML Kit APIs. */
@@ -57,10 +60,15 @@ public final class LivePreviewActivity extends AppCompatActivity
   private CameraSource cameraSource = null;
   private CameraSourcePreview preview;
   private GraphicOverlay graphicOverlay;
+
+  private ToggleButton scanToggle;
+
   private String selectedModel = BARCODE_SCANNING;
 
   private EncryptionManager encryptionManager;
+  private BarcodeScannerProcessor barcodeScannerProcessor;
 
+//  private boolean isScanActive = false;
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -76,6 +84,11 @@ public final class LivePreviewActivity extends AppCompatActivity
     graphicOverlay = findViewById(R.id.graphic_overlay);
     if (graphicOverlay == null) {
       Log.d(TAG, "graphicOverlay is null");
+    }
+
+    scanToggle = findViewById(R.id.scanToggle);
+    if (scanToggle == null) {
+      Log.d(TAG, "Scan Button is null");
     }
 
     Spinner spinner = findViewById(R.id.spinner);
@@ -101,6 +114,16 @@ public final class LivePreviewActivity extends AppCompatActivity
               SettingsActivity.EXTRA_LAUNCH_SOURCE, SettingsActivity.LaunchSource.LIVE_PREVIEW);
           startActivity(intent);
         });
+
+    TextView logButton = findViewById(R.id.log_button);
+    logButton.setOnClickListener(
+            v -> {
+              Intent intent = new Intent(getApplicationContext(), LogsActivity.class);
+                intent.putExtra("messages", encryptionManager.displayedMessages);
+//              intent.putExtra(
+//                      LogsActivity.EXTRA_LAUNCH_SOURCE, LogsActivity.LaunchSource.LIVE_PREVIEW);
+              startActivity(intent);
+            });
 
     createCameraSource(selectedModel);
   }
@@ -143,7 +166,8 @@ public final class LivePreviewActivity extends AppCompatActivity
 
     try {
       Log.i(TAG, "Using Barcode Detector Processor");
-      cameraSource.setMachineLearningFrameProcessor(new BarcodeScannerProcessor(this, encryptionManager));
+      barcodeScannerProcessor = new BarcodeScannerProcessor(this, encryptionManager, scanToggle);
+      cameraSource.setMachineLearningFrameProcessor(barcodeScannerProcessor);
 //      break;
 //      switch (model) {
 //        case BARCODE_SCANNING:
@@ -190,6 +214,8 @@ public final class LivePreviewActivity extends AppCompatActivity
     Log.d(TAG, "onResume");
     createCameraSource(selectedModel);
     startCameraSource();
+
+    barcodeScannerProcessor.isCurrentlyProcessingCode = false;
   }
 
   /** Stops the camera. */

@@ -45,7 +45,9 @@ import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -54,6 +56,7 @@ import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 class MessageContent {
     public String hdr;
@@ -79,6 +82,8 @@ public class EncryptionManager {
 
     private int messageCounter = 0;
 
+    public ArrayList<String> displayedMessages = new ArrayList<>();
+
     public EncryptionManager(Context appCtx) {
         ctx = appCtx;
         importKeys();
@@ -95,11 +100,14 @@ public class EncryptionManager {
             MessageContent content = extractMessageContent(msg);
             Log.d("Extracted Content Msg", content.msg);
             messageCounter = 1;
-            return handshakeSetup(content);
+
+            String result = handshakeSetup(content);
+            displayedMessages.add(result);
+            return result;
         }
 
         //Decrypt
-        String decryptedMsg = AESDecrypt(msg.msg);
+        String decryptedMsg = AESDecrypt(msg.msg, symKey);
 
         //Extract
         MessageContent content = gson.fromJson(decryptedMsg, MessageContent.class);
@@ -116,7 +124,23 @@ public class EncryptionManager {
         }
         messageCounter = content.fresh + 1;
 
+        if (content.hdr.equals("OTP")) {
+            byte[] decodedKey = Base64.decode("k72vE3HJUNCbVqbcKo5el9QvhE/rEH86c/f6LmnBp3w=", Base64.DEFAULT);
+            SecretKey key = new SecretKeySpec(decodedKey, "AES");
+
+            //Encryption test
+//            String res = AESEncrypt("AAAAAA", key);
+//            Log.d("TEST", res);
+
+
+            String challenge = AESDecrypt(content.msg, key);
+            String toDisplay = "OTP Request:\nWrite the following in the interface:\n" + challenge;
+            displayedMessages.add(toDisplay);
+            return toDisplay;
+        }
+
         //Display message
+        displayedMessages.add(content.msg);
         return content.msg;
     }
 
@@ -293,7 +317,7 @@ public class EncryptionManager {
         }
     }
 
-    private String AESDecrypt(String cipherText) {
+    private String AESDecrypt(String cipherText, SecretKey decryptionKey) {
         // A 128 bit IV
         // TODO: Remove this, it should not be hardcoded
         byte[] iv = "0123456789012345".getBytes(StandardCharsets.UTF_8);
@@ -301,8 +325,9 @@ public class EncryptionManager {
 
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            cipher.init(Cipher.DECRYPT_MODE, symKey, ivSpec);
-            byte[] plainText = cipher.doFinal(Base64.decode(cipherText, Base64.DEFAULT));
+            cipher.init(Cipher.DECRYPT_MODE, decryptionKey, ivSpec);
+            byte[] cipherBytes = Base64.decode(cipherText, Base64.DEFAULT);
+                byte[] plainText = cipher.doFinal(cipherBytes);
             return new String(plainText);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
@@ -315,6 +340,21 @@ public class EncryptionManager {
         } catch (IllegalBlockSizeException e) {
             throw new RuntimeException(e);
         } catch (BadPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String AESEncrypt(String plainText, SecretKey key) {
+        byte[] iv = "0123456789012345".getBytes(StandardCharsets.UTF_8);
+        IvParameterSpec ivSpec = new IvParameterSpec(iv);
+
+        try {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
+//            byte[] cipherBytes = Base64.decode(plainText, Base64.DEFAULT);
+            byte[] cipherText = cipher.doFinal(plainText.getBytes("UTF-8"));
+            return Base64.encodeToString(cipherText, Base64.DEFAULT);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

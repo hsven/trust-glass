@@ -147,4 +147,13 @@ bool rsa_encryption(std::string data, RSA* pkey);
 */
 std::string generate_random_string(const int len);
 
-std::map<char, char> generate_randomized_keyboard();
+/**
+ * Creates a randomized keyboard mapping.
+ * Maps all alphanumeric characters (0-9a-zA-Z)
+ * 
+ * Param:
+ * - 'invertedMap' = an inverted mapping of the keyboard (values to keys). Leave at null if not needed
+ * 
+ * Return: pointer to the randomized keyboard map
+*/
+std::map<char, char>* generate_randomized_keyboard(std::map<char, char>* invertedMap);

@@ -70,7 +70,17 @@ void ecall_handshake_phase1() {
 void ecall_handshake_phase2(std::string in) {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    ret = ecall_finish_setup(global_eid, in.c_str());
+    ret = ecall_setup(global_eid, in.c_str());
+    // ret = ecall_finish_setup(global_eid, in.c_str());
+    if (ret != SGX_SUCCESS)
+        abort();
+}
+
+void ecall_verify_auth(std::string in) {
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+    ret = ecall_auth(global_eid, in.c_str());
+    // ret = ecall_finish_setup(global_eid, in.c_str());
     if (ret != SGX_SUCCESS)
         abort();
 }

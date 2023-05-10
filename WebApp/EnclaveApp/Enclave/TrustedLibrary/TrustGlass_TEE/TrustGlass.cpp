@@ -165,9 +165,20 @@ std::string TrustGlass::sign_string(std::string contentString) {
     return sign_message(contentString.c_str(), longTermKeyPair);
 }
 
-std::map<char, char> TrustGlass::create_random_keyboard() {
-    latestKeyboard = generate_randomized_keyboard();
+std::map<char, char>* TrustGlass::create_random_keyboard() {
+    latestInvertedKeyboard = new std::map<char, char>(); 
+    latestKeyboard = generate_randomized_keyboard(latestInvertedKeyboard);
     return latestKeyboard;
+}
+
+std::string TrustGlass::decipher_randomized_string(std::string input) {
+    std::string decipheredString = "";
+    for (char character : input)
+    {
+        decipheredString += (*latestInvertedKeyboard)[character];
+    }
+    
+    return decipheredString;
 }
 
 ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, bool signWithSessionKeys) {

@@ -24,8 +24,8 @@ def connectToEnclave():
     # print(ssock.version())
     ssock.connect((HOST, PORT))
     # print("Test")
-    lastMessage = receiveResponse()
-    print(lastMessage)
+    # lastMessage = receiveResponse()
+    # print(lastMessage)
 
 def sendInput(text : str):
    ssock.sendall((text + "END").encode())

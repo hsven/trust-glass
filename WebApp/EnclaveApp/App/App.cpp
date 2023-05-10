@@ -256,14 +256,22 @@ int SGX_CDECL main(int argc, char *argv[])
 
             printf("Client SSL connection accepted\n\n");
 
-            ecall_handshake_phase1();
-            /* Get message from client; will fail if client closes connection */
+            //Step 1. Collect Username and Glasses' Session Public Key
             std::string in = receive_message(ssl);
+
+            // ecall_handshake_phase1();
+            /* Get message from client; will fail if client closes connection */
+            // in = receive_message(ssl);
+            //Step 2. Send Challenge (Keyboard and )
             ecall_handshake_phase2(in);
 
-            ecall_request_otp_token();
-            in = receive_message(ssl);
-            ecall_verify_otp_token(in);
+            //Step 3. Confirm password...
+            // in = receive_message(ssl);
+            // ecall_verify_auth(in);
+
+            // ecall_request_otp_token();
+            // in = receive_message(ssl);
+            // ecall_verify_otp_token(in);
 
             // ecall_handshake_phase3();
 

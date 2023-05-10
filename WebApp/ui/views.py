@@ -33,7 +33,7 @@ def loginAction(request):
     else:
         EnclaveConnection.connectToEnclave()
         form = LoginForm() 
-        qrCode = EnclaveConnection.createQRCode(EnclaveConnection.lastMessage)
+        # qrCode = EnclaveConnection.createQRCode(EnclaveConnection.lastMessage)
         # print(qrCode)
 
     return render(request, "loginPage.html", {"form": form, "qrCode": qrCode})

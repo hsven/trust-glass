@@ -60,6 +60,8 @@ void send_response(std::string header, std::string content, bool signWithSession
 }
 
 void generate_welcome_message() {
+    trustGlass->currentState = TrustGlassStates::CONNECTED;
+
     resManager.userMenu.clear();
     std::string opt1 = generate_random_string(4);
 
@@ -127,6 +129,46 @@ void ecall_verify_otp_reponse(const char* in) {
         send_response("ERROR", "OTP ERROR - Response did not match challenge", false);
 }
 
+void ecall_setup(const char* encodedPeerKey) {
+
+    if(!trustGlass->derive_secret_key(encodedPeerKey)) {
+        send_response("ERROR", "Setup: Faied to process the received key", false);
+        return;
+    }
+    std::map<char, char>* keyboard = trustGlass->create_random_keyboard();
+    std::string keyboardOut = "{";
+    for (auto &&i : *keyboard)
+    {
+        keyboardOut += "\""; 
+        keyboardOut += i.first;
+        keyboardOut += "\":\"";
+        keyboardOut += i.second;
+        keyboardOut += "\",";
+    }
+    keyboardOut.replace(keyboardOut.length() - 1, 1, "}");
+    // keyboardOut += "}";
+    // char* encodedKB = base64_encode(keyboardOut.data(), keyboardOut.length);
+    
+    std::string pubKey = trustGlass->retrieve_public_EC_session_key();
+    printf("%s\n", pubKey);
+    std::string payload = "{\"key\":\"" + pubKey + "\",\"map\":" + keyboardOut + "}";
+    char* encodedPayload = base64_encode((unsigned char*) payload.data(), payload.length());
+
+    trustGlass->currentState = TrustGlassStates::IN_AUTH;
+    send_response("HANDSHAKE", encodedPayload, false);
+}
+
+void ecall_auth(const char* input) {
+    const char* result = trustGlass->decipher_randomized_string(input).c_str();
+    printf("Decipher Result: %s\n", result);
+    // TODO: Don't hardcode passwords
+    if (!strcmp(result, "password123"))
+        generate_welcome_message();
+        // send_response("OTP", "OTP Success", true);
+    else 
+        send_response("ERROR", "AUTH ERROR - Wrong Password", false);
+}
+
 void ecall_start_setup() {
     const char* pubKey = trustGlass->retrieve_public_EC_session_key().c_str();
     printf("%s\n", pubKey);
@@ -135,7 +177,7 @@ void ecall_start_setup() {
     //     return;
     // }
 
-    send_response("HANDSHAKE", pubKey, false);
+    // send_response("HANDSHAKE", pubKey, false);
 }
 
 void ecall_finish_setup(const char* encodedPeerKey) {
@@ -147,5 +189,10 @@ void ecall_finish_setup(const char* encodedPeerKey) {
 }
 
 void ecall_receive_input(const char* in) {
+    if (trustGlass->currentState == TrustGlassStates::IN_AUTH) {
+        ecall_auth(in);
+        return;
+    }
+
     send_response("MSG", resManager.prepare_response(in), true);
 }

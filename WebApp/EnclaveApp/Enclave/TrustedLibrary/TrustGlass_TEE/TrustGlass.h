@@ -3,19 +3,28 @@
 #include <cmath>
 #include <time.h>
 
+enum class TrustGlassStates {
+    DISCONNECTED,
+    IN_AUTH,
+    CONNECTED
+};
+
 class TrustGlass {
     EVP_PKEY* longTermKeyPair = NULL;
     EVP_PKEY* longTermPeerKey = NULL;
     char* otpSharedKey = NULL;
     std::string latestOTP = "";
-    std::map<char, char> latestKeyboard;
+    std::map<char, char>* latestKeyboard;
+    std::map<char, char>* latestInvertedKeyboard;
     EC_GROUP *ecGroup = NULL;
     EC_KEY *keyPair = NULL;
     EVP_PKEY* PKEY_keyPair = NULL;
     EC_POINT *peerPoint = NULL;
     unsigned char* secretKey = NULL;
 
+
     public:
+    TrustGlassStates currentState = TrustGlassStates::DISCONNECTED;
     int messageCounter = 0;
     std::string currentMessage = "";
 
@@ -84,8 +93,9 @@ class TrustGlass {
     */
     std::string sign_string(std::string contentString);
 
-    std::map<char, char> create_random_keyboard();
+    std::map<char, char>* create_random_keyboard();
 
+    std::string decipher_randomized_string(std::string input);
 
     /**
      * Creates a ResponseMessage object

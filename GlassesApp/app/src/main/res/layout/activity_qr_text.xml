@@ -7,9 +7,9 @@
         android:id="@+id/textView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:text="TextView"
+        android:fontFamily="serif"
+        android:scrollbars="vertical"
+        android:text="Il"
         android:textAlignment="center"
-        android:textSize="30sp"
-        android:scrollbars = "vertical"
-        />
+        android:textSize="30sp" />
 </androidx.constraintlayout.widget.ConstraintLayout>

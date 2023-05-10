@@ -16,6 +16,7 @@
 
 package pt.ulisboa.tecnico.trustglass.java;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -31,11 +32,19 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.common.annotation.KeepName;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
+import com.google.gson.stream.JsonReader;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,13 +56,34 @@ import pt.ulisboa.tecnico.trustglass.java.barcodescanner.BarcodeScannerProcessor
 import pt.ulisboa.tecnico.trustglass.java.encryption.EncryptionManager;
 import pt.ulisboa.tecnico.trustglass.preference.LogsActivity;
 import pt.ulisboa.tecnico.trustglass.preference.SettingsActivity;
+import pt.ulisboa.tecnico.trustglass.BuildConfig;
+
+class WebsiteEntry {
+  public String name;
+  public String domain;
+
+  public WebsiteEntry() {
+    this.name = "NULL";
+    this.domain = "";
+  }
+  public WebsiteEntry(String name, String domain) {
+    this.name = name;
+    this.domain = domain;
+  }
+}
 
 /** Live preview demo for ML Kit APIs. */
 @KeepName
 public final class LivePreviewActivity extends AppCompatActivity
     implements OnItemSelectedListener, CompoundButton.OnCheckedChangeListener {
 
+
   private static final String BARCODE_SCANNING = "Barcode Scanning";
+  private static final String ADD_NEW_WEBSITE = " + New Entry";
+
+  public List<WebsiteEntry> registeredWebsites = null;
+  private WebsiteEntry selectedWebsite = null;
+//  private String selectedWebsite = ADD_NEW_WEBSITE;
 
   private static final String TAG = "LivePreviewActivity";
 
@@ -61,6 +91,7 @@ public final class LivePreviewActivity extends AppCompatActivity
   private CameraSourcePreview preview;
   private GraphicOverlay graphicOverlay;
 
+  private Spinner spinner = null;
   private ToggleButton scanToggle;
 
   private String selectedModel = BARCODE_SCANNING;
@@ -68,7 +99,6 @@ public final class LivePreviewActivity extends AppCompatActivity
   private EncryptionManager encryptionManager;
   private BarcodeScannerProcessor barcodeScannerProcessor;
 
-//  private boolean isScanActive = false;
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -91,17 +121,10 @@ public final class LivePreviewActivity extends AppCompatActivity
       Log.d(TAG, "Scan Button is null");
     }
 
-    Spinner spinner = findViewById(R.id.spinner);
-    List<String> options = new ArrayList<>();
-    options.add(BARCODE_SCANNING);
+    spinner = findViewById(R.id.spinner);
 
-    // Creating adapter for spinner
-    ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
-    // Drop down layout style - list view with radio button
-    dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-    // attaching data adapter to spinner
-    spinner.setAdapter(dataAdapter);
-    spinner.setOnItemSelectedListener(this);
+    registeredWebsites = loadStoredWebsiteEntries();
+    updateSpinner();
 
     ToggleButton facingSwitch = findViewById(R.id.facing_switch);
     facingSwitch.setOnCheckedChangeListener(this);
@@ -128,15 +151,101 @@ public final class LivePreviewActivity extends AppCompatActivity
     createCameraSource(selectedModel);
   }
 
+  private void updateSpinner() {
+    List<String> options = new ArrayList<>();
+
+    int currentSelectedPosition = -1;
+    int i = 0;
+    for (WebsiteEntry entry : registeredWebsites) {
+      options.add(entry.name);
+      if (entry == selectedWebsite) currentSelectedPosition = i;
+
+      i++;
+    }
+    options.add(ADD_NEW_WEBSITE);
+//    options.add(BARCODE_SCANNING);
+
+    // Creating adapter for spinner
+    ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
+    // Drop down layout style - list view with radio button
+    dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+    // attaching data adapter to spinner
+    spinner.setAdapter(dataAdapter);
+    spinner.setOnItemSelectedListener(this);
+
+    if(currentSelectedPosition == -1) spinner.setSelection(options.size() - 1);
+    else spinner.setSelection((currentSelectedPosition));
+
+    //Next: Connect to server + adapt key storing to a Java KeyStore
+  }
+
+  private List<WebsiteEntry> loadStoredWebsiteEntries() {
+    try {
+      String websiteFileName = "registeredWebsites.json";
+      FileInputStream fis = null;
+      fis = this.openFileInput(websiteFileName);
+      Gson gson = new Gson();
+      JsonReader reader = new JsonReader(new InputStreamReader(fis));
+
+      List<WebsiteEntry> entries = gson.fromJson(reader, new TypeToken<List<WebsiteEntry>>(){}.getType());
+
+      if (!entries.isEmpty()) {
+        selectedWebsite = entries.get(0);
+      }
+      return entries;
+    } catch (FileNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+
+  }
+
   @Override
   public synchronized void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
     // An item was selected. You can retrieve the selected item using
     // parent.getItemAtPosition(pos)
-    selectedModel = parent.getItemAtPosition(pos).toString();
-    Log.d(TAG, "Selected model: " + selectedModel);
-    preview.stop();
-    createCameraSource(selectedModel);
-    startCameraSource();
+    selectedWebsite = null;
+    for (WebsiteEntry entry : registeredWebsites) {
+      if (entry.name.equals(parent.getItemAtPosition(pos).toString())) {
+        selectedWebsite = entry;
+        break;
+      }
+    }
+
+    if (selectedWebsite == null) {
+      Log.d(TAG, "ADD NEW");
+      Intent websiteRegister = new Intent(this, WebsiteRegisterActivity.class);
+//      qrTextIntent.putExtra("qrText", qrText);
+      startActivityForResult(websiteRegister, 1);
+
+      return;
+    } else if (!BuildConfig.hasOTP){
+      encryptionManager.clearSession();
+      displayQRText(encryptionManager.generateECSessionKeyPair());
+    }
+//    registeredWebsites.stream().filter(entry -> entry.name == parent.getItemAtPosition(pos).toString()).findFirst().get();
+//    selectedWebsite = parent.getItemAtPosition(pos).toString();
+    Log.d(TAG, "Selected Website: " + selectedWebsite.name);
+//    preview.stop();
+//    createCameraSource(selectedModel);
+//    startCameraSource();
+  }
+
+  @Override
+  protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+    switch(requestCode) {
+      case (1) : {
+        if (resultCode == Activity.RESULT_OK) {
+          WebsiteEntry newEntry = new WebsiteEntry(data.getStringExtra("name"), data.getStringExtra("link"));
+          registeredWebsites.add(newEntry);
+          selectedWebsite = newEntry;
+          updateSpinner();
+//          String newText = data.getStringExtra(PUBLIC_STATIC_STRING_IDENTIFIER);
+          // TODO Update your TextView.
+        }
+        break;
+      }
+    }
   }
 
   @Override

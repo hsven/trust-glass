@@ -48,6 +48,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -58,6 +59,13 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import pt.ulisboa.tecnico.trustglass.BuildConfig;
+
+class Handshake {
+    public String key;
+    public Map<String, String> map;
+}
+
 class MessageContent {
     public String hdr;
     public String msg;
@@ -66,6 +74,7 @@ class MessageContent {
 class Message {
     public String msg;
     public String sig;
+    public boolean ses;
 }
 
 public class EncryptionManager {
@@ -73,7 +82,7 @@ public class EncryptionManager {
 
     private String key = "";
     private KeyPair sessionKeyPair = null;
-    private PublicKey peerKey = null;
+    private ECPublicKey peerKey = null;
 
     private SecretKey symKey = null;
 
@@ -96,14 +105,53 @@ public class EncryptionManager {
 
         //If in handshake step
         //TODO: Improve the check for an handshake message
-        if (msg.sig.isEmpty()) {
+        if (messageCounter == 0 || !msg.ses) {
+            String decodedMessageContent = new String(Base64.decode(msg.msg, Base64.DEFAULT), StandardCharsets.UTF_8);
+
             MessageContent content = extractMessageContent(msg);
             Log.d("Extracted Content Msg", content.msg);
-            messageCounter = 1;
 
-            String result = handshakeSetup(content);
-            displayedMessages.add(result);
-            return result;
+            //Check freshness
+            if (content.fresh != messageCounter) {
+                return "ERROR: Freshness check failed!";
+            }
+            messageCounter = content.fresh + 1;
+
+            if (content.hdr.equals("ERROR")) {
+                return content.msg;
+            }
+            if (!content.hdr.equals("HANDSHAKE")) {
+                return "ERROR: Incorrect expected header!";
+            }
+
+            if (!BuildConfig.hasOTP) {
+                Handshake data = extractHandshakeData(content);
+                //Check authenticity
+                if (!checkAuthenticity(decodedMessageContent, msg, longTermPeerKey)) {
+                    return "ERROR: Hash mismatch in the received message!";
+                }
+
+
+//            messageCounter = 1;
+
+//            Map<String, String> yourMap = /*..;
+                StringBuilder bob = new StringBuilder();
+                for (Map.Entry<String,String> entry : data.map.entrySet()) {
+                    bob.append(entry.getKey()).append("->").append(entry.getValue()).append("\n");
+                }
+                String mapStr = bob.toString();
+
+                String result = handshakeSetup(data.key) + "Use the following mapping to input your password: " + mapStr;
+                displayedMessages.add(result);
+                return result;
+            }
+            else {
+
+                String result = handshakeSetup(content.msg);
+                displayedMessages.add(result);
+                return result;
+            }
+
         }
 
         //Decrypt
@@ -113,16 +161,16 @@ public class EncryptionManager {
         MessageContent content = gson.fromJson(decryptedMsg, MessageContent.class);
         Log.d("Extracted Content Msg", decryptedMsg);
 
-        //Check authenticity
-        if (!checkAuthenticity(decryptedMsg, msg)) {
-            return "ERROR: Hash mismatch in the received message!";
-        }
-
         //Check freshness
         if (content.fresh != messageCounter) {
             return "ERROR: Freshness check failed!";
         }
         messageCounter = content.fresh + 1;
+
+        //Check authenticity
+        if (!checkAuthenticity(decryptedMsg, msg, peerKey)) {
+            return "ERROR: Hash mismatch in the received message!";
+        }
 
         if (content.hdr.equals("OTP")) {
             byte[] decodedKey = Base64.decode("k72vE3HJUNCbVqbcKo5el9QvhE/rEH86c/f6LmnBp3w=", Base64.DEFAULT);
@@ -159,8 +207,16 @@ public class EncryptionManager {
 
     private MessageContent extractMessageContent(Message msg) {
         byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
+        String peak = new String(decodedMessageContent);
         Gson gson = new Gson();
         return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), MessageContent.class);
+    }
+
+    private Handshake extractHandshakeData(MessageContent msg) {
+        byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
+        String peak = new String(decodedMessageContent);
+        Gson gson = new Gson();
+        return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), Handshake.class);
     }
 
     private void importKeys() {
@@ -221,11 +277,49 @@ public class EncryptionManager {
         }
     }
 
-    private String handshakeSetup(MessageContent msg) {
-        byte[] decodedKey = Base64.decode(msg.msg, Base64.DEFAULT);
+    public void clearSession() {
+        sessionKeyPair = null;
+        peerKey = null;
+        symKey = null;
+        messageCounter = 0;
+    }
+
+    public String generateECSessionKeyPair() {
+        sessionKeyPair = generateECKeyPair();
+        if (sessionKeyPair == null) {
+            return "SETUP ERROR\nFailed to generate the session keys";
+        }
+
+        ECPublicKey ecPubKey = (ECPublicKey) sessionKeyPair.getPublic();
+        ECPoint publicPoint = ecPubKey.getW();
+
+        String compressedKeyPrefix = "";
+        if(publicPoint.getAffineY().mod(new BigInteger("2")).equals(BigInteger.ZERO))
+            compressedKeyPrefix = "02";
+        else
+            compressedKeyPrefix = "03";
+
+        Log.d("pointX:", publicPoint.getAffineX().toString(16));
+        Log.d("pointY:", publicPoint.getAffineY().toString(16));
+
+        String outputHex = compressedKeyPrefix + publicPoint.getAffineX().toString(16);
+        byte[] outputBytes = new BigInteger(outputHex, 16).toByteArray();
+        String out = Base64.encodeToString(outputBytes, Base64.DEFAULT);
+
+        Log.d("SecretKeyBase64:", key);
+        Log.d("PubKeyInHex", outputHex);
+        Log.d("PubKeyToSend", out);
+
+        return "Connection Start\nWrite the following key in the keyboard:\n\n" + out;
+    }
+
+    private String handshakeSetup(String receivedPubKey) {
+        byte[] decodedKey = Base64.decode(receivedPubKey, Base64.DEFAULT);
 
         peerKey = ecPointToPublicKey(new String(decodedKey));
-        sessionKeyPair = generateECKeyPair();
+        if (BuildConfig.hasOTP)
+            sessionKeyPair = generateECKeyPair();
+
         if (peerKey == null || sessionKeyPair == null) {
             return "Handshake ERROR\nFailed to either generate the session keys or retrieve the peer key";
         }
@@ -256,13 +350,16 @@ public class EncryptionManager {
         Log.d("PubKeyInHex", outputHex);
         Log.d("PubKeyToSend", out);
 
-        return "Handshake OK\nWrite the following key in the keyboard:\n\n" + out;
+        if(BuildConfig.hasOTP)
+            return "Handshake OK\nWrite the following key in the keyboard:\n\n" + out;
+        else
+            return "Handshake OK\n";
     }
 
-    private boolean checkAuthenticity(String decryptedMsg, Message msg) {
+    private boolean checkAuthenticity(String decryptedMsg, Message msg, ECPublicKey key) {
         try {
             Signature sig = Signature.getInstance("SHA256withECDSA");
-            sig.initVerify(longTermPeerKey);
+            sig.initVerify(key);
             sig.update(decryptedMsg.getBytes());
             return sig.verify(Base64.decode(msg.sig, Base64.DEFAULT));
         } catch (NoSuchAlgorithmException e) {

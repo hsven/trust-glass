@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
+//apply plugin: 'kotlin-android'
+//apply plugin: 'kotlin-android-extensions'
 
 android {
     compileSdkVersion 31
@@ -44,6 +44,22 @@ android {
     aaptOptions {
         noCompress "tflite"
     }
+
+    flavorDimensions "version"
+    productFlavors {
+        password_demo {
+            dimension "version"
+            applicationIdSuffix ".pass_demo"
+            versionNameSuffix "-pass_demo"
+            buildConfigField "boolean", "hasOTP", "false"
+        }
+        otp_demo {
+            dimension "version"
+            applicationIdSuffix ".otp_demo"
+            versionNameSuffix "-otp_demo"
+            buildConfigField "boolean", "hasOTP", "true"
+        }
+    }
 }
 
 repositories {
@@ -54,7 +70,7 @@ repositories {
 dependencies {
 //    implementation files('libs/BasicFunctionSDK_1.2.1.aar')
 
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.5.31'
+//    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.5.31'
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.bouncycastle:bcpkix-jdk15on:1.67'

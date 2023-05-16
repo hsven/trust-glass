@@ -106,9 +106,14 @@ void ecall_receive_peer_key(const char* in) {
     trustGlass->set_peer_key(in);
 }
 
-void ecall_receive_otp_key(const char * in) {
+void ecall_receive_otp_key(const char* in) {
     printf("%s\n", in);
     trustGlass->set_otp_key(in);
+}
+
+void ecall_receive_long_term_shared_key(const char* in) {
+    printf("LT Key: %s\n", in);
+    trustGlass->set_long_term_shared_key(in);
 }
 
 void ecall_request_otp_challenge() {
@@ -128,14 +133,18 @@ void ecall_verify_otp_reponse(const char* in) {
 }
 
 void ecall_start_setup() {
-    const char* pubKey = trustGlass->retrieve_public_EC_session_key().c_str();
-    printf("%s\n", pubKey);
+    const char* response = trustGlass->create_session();
+
+    // const char* pubKey = trustGlass->retrieve_public_EC_session_key().c_str();
+    // printf("%s\n", pubKey);
     // if(pubKey.empty()) {
     //     send_response("ERROR", "Setup: Failed to retrieve public EC key", false);
     //     return;
     // }
-
-    send_response("HANDSHAKE", pubKey, false);
+    printf("Encoded LTK: %s\n", trustGlass->longTermSharedKey);
+    printf("Encoded NONCE: %s\n", response);
+    printf("Encoded session key: %s\n", base64_encode(trustGlass->sessionKey, 32));
+    send_response("HANDSHAKE", response, false);
 }
 
 void ecall_finish_setup(const char* encodedPeerKey) {

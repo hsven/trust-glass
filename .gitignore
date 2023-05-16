@@ -2,6 +2,8 @@
 
 # Exclude any key related file
 **/*.pem
+**/*.bin
+**/*.txt
 **/*.crt
 **/*.key
 **/*.csr

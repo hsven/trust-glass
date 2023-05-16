@@ -57,6 +57,16 @@ void ecall_send_key() {
         if (ret != SGX_SUCCESS)
             abort();
     }
+
+    // LTK Section
+    std::ifstream sharedLTKey("sharedLTKeyB64.txt");
+    if (sharedLTKey.good()) {
+        std::string sharedLTKeyContent( (std::istreambuf_iterator<char>(sharedLTKey) ),
+                (std::istreambuf_iterator<char>()       ) );
+        ret = ecall_receive_long_term_shared_key(global_eid, sharedLTKeyContent.c_str());
+        if (ret != SGX_SUCCESS)
+            abort();
+    }
 }
 
 void ecall_handshake_phase1() {

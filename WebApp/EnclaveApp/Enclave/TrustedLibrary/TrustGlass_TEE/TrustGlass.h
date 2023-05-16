@@ -13,9 +13,12 @@ class TrustGlass {
     EC_KEY *keyPair = NULL;
     EVP_PKEY* PKEY_keyPair = NULL;
     EC_POINT *peerPoint = NULL;
-    unsigned char* secretKey = NULL;
 
+    unsigned char* sessionIV = NULL;
+    
     public:
+    char* longTermSharedKey = NULL;
+    unsigned char* sessionKey = NULL;
     int messageCounter = 0;
     std::string currentMessage = "";
 
@@ -59,6 +62,8 @@ class TrustGlass {
 
     void set_otp_key(std::string in);
 
+    void set_long_term_shared_key(std::string in);
+
     std::string create_otp_value();
 
     bool verify_otp_entry(const char* in);
@@ -86,6 +91,7 @@ class TrustGlass {
 
     std::map<char, char> create_random_keyboard();
 
+    const char* create_session();
 
     /**
      * Creates a ResponseMessage object

@@ -259,7 +259,7 @@ int SGX_CDECL main(int argc, char *argv[])
             ecall_handshake_phase1();
             /* Get message from client; will fail if client closes connection */
             std::string in = receive_message(ssl);
-            ecall_handshake_phase2(in);
+            // ecall_handshake_phase2(in);
 
             ecall_request_otp_token();
             in = receive_message(ssl);

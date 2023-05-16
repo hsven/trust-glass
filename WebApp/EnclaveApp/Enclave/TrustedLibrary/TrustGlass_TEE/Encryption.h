@@ -9,6 +9,7 @@
 #include <openssl/rand.h>
 #include <openssl/pem.h>
 #include <openssl/hmac.h>
+#include <openssl/kdf.h>
 #include <string>
 #include <sgx_trts.h>
 
@@ -47,6 +48,9 @@ unsigned char* base64_decode(const char* input, int length);
  * Return: length of the 'out' string, or NULL if the operation fails
 */
 int base64_decode_len(const char* input, int length, unsigned char** out);
+
+
+int new_base64_decode(const char* input, int length, unsigned char** out);
 
 /**
  * Hashes and signs the string 'message' with a specified key.
@@ -146,5 +150,9 @@ bool rsa_encryption(std::string data, RSA* pkey);
  * Return: string with randomly selected characters
 */
 std::string generate_random_string(const int len);
+
+int generate_nonce(unsigned char* nonce, int nonceSize);
+
+int derive_new_key(unsigned char* baseKey, int keyLen, unsigned char* nonce, int nonceLen, unsigned char* newKey);
 
 std::map<char, char> generate_randomized_keyboard();

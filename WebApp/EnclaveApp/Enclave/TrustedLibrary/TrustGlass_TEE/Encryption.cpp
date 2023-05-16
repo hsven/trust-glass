@@ -28,6 +28,22 @@ int base64_decode_len(const char* input, int length, unsigned char** out) {
     return ol;
 }
 
+int new_base64_decode(const char* input, int length, unsigned char** out) {
+    const auto pl = 3*length/4;
+    *out = reinterpret_cast<unsigned char *>(calloc(pl+1, 1));
+
+    int dlen;
+    EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+    EVP_DecodeInit(ctx);
+    EVP_DecodeUpdate(ctx, *out, &dlen, reinterpret_cast<const unsigned char *>(input), length);
+    // OPENSSL_assert(dlen == 1);
+    // OPENSSL_assert(dst[0] == (unsigned char)'a');
+    EVP_DecodeFinal(ctx, *out, &dlen);
+    // OPENSSL_assert(dlen == 0);
+    EVP_ENCODE_CTX_free(ctx);
+    return dlen;
+}
+
 std::string sign_message(const char* message, EVP_PKEY* pKey) {
     EVP_MD_CTX *mdctx;
 
@@ -287,4 +303,45 @@ std::map<char, char> generate_randomized_keyboard() {
     }
 
     return keyboardMapping;
+}
+
+int generate_nonce(unsigned char* nonce, int nonceSize) {
+    return RAND_bytes(nonce, nonceSize);
+}
+
+//As seen in https://wiki.openssl.org/index.php/EVP_Key_Derivation
+int derive_new_key(unsigned char* baseKey, int keyLen, unsigned char* nonce, int nonceLen, unsigned char* newKey) {
+    EVP_PKEY_CTX *pctx;
+    unsigned char out[32];
+    size_t outlen = sizeof(out);
+    pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+
+    if (EVP_PKEY_derive_init(pctx) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_CTX_set1_hkdf_salt(pctx, nonce, nonceLen) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_CTX_set1_hkdf_key(pctx, baseKey, keyLen) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_derive(pctx, out, &outlen) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+
+    memcpy(newKey, out + 0, 32);
+    return 0;
 }

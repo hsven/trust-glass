@@ -70,13 +70,6 @@ class Handshake {
     public Map<String, String> map;
 }
 
-import pt.ulisboa.tecnico.trustglass.BuildConfig;
-
-class Handshake {
-    public String key;
-    public Map<String, String> map;
-}
-
 class MessageContent {
     public String hdr;
     public String msg;
@@ -86,7 +79,6 @@ class Message {
     public String msg;
     public String sig;
     public boolean ses;
-    public boolean ses;
 }
 
 public class EncryptionManager {
@@ -94,7 +86,6 @@ public class EncryptionManager {
 
     private String key = "";
     private KeyPair sessionKeyPair = null;
-    private ECPublicKey peerKey = null;
     private ECPublicKey peerKey = null;
 
     private SecretKey symKey = null;
@@ -122,9 +113,6 @@ public class EncryptionManager {
         if (messageCounter == 0 || !msg.ses) {
             String decodedMessageContent = new String(Base64.decode(msg.msg, Base64.DEFAULT), StandardCharsets.UTF_8);
 
-        if (messageCounter == 0 || !msg.ses) {
-            String decodedMessageContent = new String(Base64.decode(msg.msg, Base64.DEFAULT), StandardCharsets.UTF_8);
-
             MessageContent content = extractMessageContent(msg);
             Log.d("Extracted Content Msg", content.msg);
 
@@ -134,12 +122,6 @@ public class EncryptionManager {
             }
             messageCounter = content.fresh + 1;
 
-            //Check freshness
-            if (content.fresh != messageCounter) {
-                return "ERROR: Freshness check failed!";
-            }
-            messageCounter = content.fresh + 1;
-
             if (content.hdr.equals("ERROR")) {
                 return content.msg;
             }
@@ -174,43 +156,6 @@ public class EncryptionManager {
                 displayedMessages.add(result);
                 return result;
             }
-            if (content.hdr.equals("ERROR")) {
-                return content.msg;
-            }
-            if (!content.hdr.equals("HANDSHAKE")) {
-                return "ERROR: Incorrect expected header!";
-            }
-
-            if (!BuildConfig.hasOTP) {
-                Handshake data = extractHandshakeData(content);
-                //Check authenticity
-                if (!checkAuthenticity(decodedMessageContent, msg, longTermPeerKey)) {
-                    return "ERROR: Hash mismatch in the received message!";
-                }
-
-
-//            messageCounter = 1;
-
-//            Map<String, String> yourMap = /*..;
-                StringBuilder bob = new StringBuilder();
-                for (Map.Entry<String,String> entry : data.map.entrySet()) {
-                    bob.append(entry.getKey()).append("->").append(entry.getValue()).append("\n");
-                }
-                String mapStr = bob.toString();
-
-                String result = handshakeSetup(data.key) + "Use the following mapping to input your password: " + mapStr;
-                displayedMessages.add(result);
-                return result;
-            }
-            else {
-
-                String result = handshakeSetup(content.msg);
-                displayedMessages.add(result);
-                return result;
-            }
-
-        }
-
         }
 
         //Decrypt
@@ -267,16 +212,8 @@ public class EncryptionManager {
     private MessageContent extractMessageContent(Message msg) {
         byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
         String peak = new String(decodedMessageContent);
-        String peak = new String(decodedMessageContent);
         Gson gson = new Gson();
         return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), MessageContent.class);
-    }
-
-    private Handshake extractHandshakeData(MessageContent msg) {
-        byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
-        String peak = new String(decodedMessageContent);
-        Gson gson = new Gson();
-        return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), Handshake.class);
     }
 
     private Handshake extractHandshakeData(MessageContent msg) {
@@ -435,7 +372,6 @@ public class EncryptionManager {
 //        else
     }
 
-    private boolean checkAuthenticity(String decryptedMsg, Message msg, ECPublicKey key) {
     private boolean checkAuthenticity(String decryptedMsg, Message msg, ECPublicKey key) {
         try {
             Signature sig = Signature.getInstance("SHA256withECDSA");

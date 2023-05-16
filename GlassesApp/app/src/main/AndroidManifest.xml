@@ -116,7 +116,9 @@
         <activity
             android:name=".preference.LogsActivity"
             android:exported="false"/>
-
+        <activity
+            android:name=".java.WebsiteRegisterActivity"
+            android:exported="false"/>
     </application>
     <queries>
         <intent>

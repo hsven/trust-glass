@@ -3,12 +3,20 @@
 #include <cmath>
 #include <time.h>
 
+enum class TrustGlassStates {
+    DISCONNECTED,
+    IN_OTP,
+    IN_AUTH,
+    CONNECTED
+};
+
 class TrustGlass {
     EVP_PKEY* longTermKeyPair = NULL;
     EVP_PKEY* longTermPeerKey = NULL;
     char* otpSharedKey = NULL;
     std::string latestOTP = "";
-    std::map<char, char> latestKeyboard;
+    std::map<char, char>* latestKeyboard;
+    std::map<char, char>* latestInvertedKeyboard;
     EC_GROUP *ecGroup = NULL;
     EC_KEY *keyPair = NULL;
     EVP_PKEY* PKEY_keyPair = NULL;
@@ -17,6 +25,7 @@ class TrustGlass {
     unsigned char* sessionIV = NULL;
     
     public:
+    TrustGlassStates currentState = TrustGlassStates::DISCONNECTED;
     char* longTermSharedKey = NULL;
     unsigned char* sessionKey = NULL;
     int messageCounter = 0;
@@ -34,17 +43,6 @@ class TrustGlass {
     std::string retrieve_public_EC_session_key();
 
     /**
-     * Decodes a Base64 EC Point, stores it, and derives a secret key via ECDH,
-     * applying this new EC Point and TrustGlass' own EC Point.
-     * 
-     * Param: 
-     * - 'encodedPeerKey' = Base64 encoded EC Point
-     * 
-     * Return: 'true' if the operation was successful, 'false' otherwise 
-    */
-    bool derive_secret_key(const char* encodedPeerKey);
-
-    /**
      * Sets the long term EC key pair of the host enclave
      * 
      * Param: 
@@ -60,12 +58,30 @@ class TrustGlass {
     */
     void set_peer_key(const char* in);
 
-    void set_otp_key(std::string in);
-
+    /**
+     * Sets the long term shared secret key of the enclave and its peer
+     * 
+     * Param: 
+     * - 'in' = Key string
+    */
     void set_long_term_shared_key(std::string in);
 
+    /**
+     * Generates an alphanumerical (a-zA-Z0-9) string of 6 character for challenge-response purposes
+     * Also stores the generated result to check against in TrustGlass::verify_otp_entry
+     * 
+     * Return: string of random alphanumerical characters
+    */
     std::string create_otp_value();
 
+    /**
+     * Verifies if the input matches the stored OTP value, generated in TrustGlass::create_otp_value
+     * 
+     * Param: 
+     * - 'in' = string to be compared
+     * 
+     * Return: Whether the string matches or not
+    */
     bool verify_otp_entry(const char* in);
 
     /**
@@ -89,8 +105,43 @@ class TrustGlass {
     */
     std::string sign_string(std::string contentString);
 
-    std::map<char, char> create_random_keyboard();
+    /**
+     * Creates a randomized keyboard mapping, as well as the inverted mapping to check user input in TrustGlass::decipher_randomized_string.
+     * The characters to randomize are user-specified
+     * 
+     * Param: 
+     * - 'keyboardToRandomize' = target of the operation
+     * 
+     * Return: pointer to the randomized keyboard map
+    */
+    std::map<char, char>* create_random_keyboard(std::string keyboardToRandomize);
 
+    /**
+     * Converts a map of characters to characters into a compatible JSON string
+     * 
+     * Param: 
+     * - 'map' = target of the operation
+     * 
+     * Return: The resulting JSON string
+    */
+    std::string map_to_string(std::map<char, char>* map);
+
+    /**
+     * Recovers the original characters of the input string, by utilizing the inverted mapping generated in TrustGlass::create_random_keyboard
+     * 
+     * Param: 
+     * - 'input' = target of the operation
+     * 
+     * Return: The deciphered string
+    */
+    std::string decipher_randomized_string(std::string input);
+
+    /**
+     * Sets up TrustGlass for a new session with a specific set of user+smart glasses
+     * Tt generates a nonce and derives the session key with it
+     * 
+     * Return: The nonce required to derive the session key
+    */
     const char* create_session();
 
     /**
@@ -103,5 +154,5 @@ class TrustGlass {
      * 
      * Return: resulting ResponseMessage object
     */
-    ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, bool signWithSessionKeys);
+    ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, std::string map, bool signWithSessionKeys);
 };

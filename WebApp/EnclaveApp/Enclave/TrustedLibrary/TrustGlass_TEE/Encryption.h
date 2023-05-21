@@ -49,9 +49,6 @@ unsigned char* base64_decode(const char* input, int length);
 */
 int base64_decode_len(const char* input, int length, unsigned char** out);
 
-
-int new_base64_decode(const char* input, int length, unsigned char** out);
-
 /**
  * Hashes and signs the string 'message' with a specified key.
  * It applied SHA-256 for generating the digest, and ECDSA for signing it
@@ -151,8 +148,39 @@ bool rsa_encryption(std::string data, RSA* pkey);
 */
 std::string generate_random_string(const int len);
 
+/**
+ * Creates a randomized keyboard mapping.
+ * The characters to randomizee are user-specified
+ * 
+ * Param:
+ * - 'charsToRandomize' = string of characters that will be affected by this operation
+ * - 'invertedMap' = an inverted mapping of the keyboard (values to keys). Leave at null if not needed
+ * 
+ * Return: pointer to the randomized keyboard map
+*/
+std::map<char, char>* generate_randomized_keyboard(std::string charsToRandomize, std::map<char, char>* invertedMap);
+
+/**
+ * Creates a nonce of specified size.
+ * 
+ * Param:
+ * - 'nonce' = pointer to output the resulting nonce
+ * - 'nonceSize' = byte size of the nonce to be generated 
+ * 
+ * Return: 1 if the operation was successful, 0 otherwise
+*/
 int generate_nonce(unsigned char* nonce, int nonceSize);
 
+/**
+ * Applies HKDF to a base key to derive a new one, as seen in https://wiki.openssl.org/index.php/EVP_Key_Derivation
+ * 
+ * Param:
+ * - 'baseKey' = key to use in the derivation
+ * - 'keyLen' = length of the introduced baseKey
+ * - 'nonce' = nonce to be used in the derivation 
+ * - 'nonceLen' = length of the introduced nonce
+ * - 'newKey' = resulting key of the derivation
+ * 
+ * Return: 0 if the operation was successful, -1 otherwise
+*/
 int derive_new_key(unsigned char* baseKey, int keyLen, unsigned char* nonce, int nonceLen, unsigned char* newKey);
-
-std::map<char, char> generate_randomized_keyboard();

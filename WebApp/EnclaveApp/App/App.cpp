@@ -256,16 +256,13 @@ int SGX_CDECL main(int argc, char *argv[])
 
             printf("Client SSL connection accepted\n\n");
 
-            ecall_handshake_phase1();
+            ecall_handshake();
             /* Get message from client; will fail if client closes connection */
             std::string in = receive_message(ssl);
-            // ecall_handshake_phase2(in);
 
             ecall_request_otp_token();
             in = receive_message(ssl);
             ecall_verify_otp_token(in);
-
-            // ecall_handshake_phase3();
 
             /* Echo loop */
             while (true) {

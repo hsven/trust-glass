@@ -48,16 +48,6 @@ void ecall_send_key() {
     if (ret != SGX_SUCCESS)
         abort();
 
-    // TOTP Section
-    std::ifstream totpKey("otpSharedKey.txt");
-    if (totpKey.good()) {
-        std::string totpKeyContent( (std::istreambuf_iterator<char>(totpKey) ),
-                (std::istreambuf_iterator<char>()       ) );
-        ret = ecall_receive_otp_key(global_eid, totpKeyContent.c_str());
-        if (ret != SGX_SUCCESS)
-            abort();
-    }
-
     // LTK Section
     std::ifstream sharedLTKey("sharedLTKeyB64.txt");
     if (sharedLTKey.good()) {
@@ -69,18 +59,18 @@ void ecall_send_key() {
     }
 }
 
-void ecall_handshake_phase1() {
+void ecall_handshake() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    ret = ecall_start_setup(global_eid);
+    ret = ecall_setup(global_eid);
     if (ret != SGX_SUCCESS)
         abort();
 }
 
-void ecall_handshake_phase2(std::string in) {
+void ecall_verify_auth(std::string in) {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    ret = ecall_finish_setup(global_eid, in.c_str());
+    ret = ecall_auth(global_eid, in.c_str());
     if (ret != SGX_SUCCESS)
         abort();
 }

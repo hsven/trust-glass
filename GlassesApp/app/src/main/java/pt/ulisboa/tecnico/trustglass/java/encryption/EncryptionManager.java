@@ -73,6 +73,9 @@ class Handshake {
 class MessageContent {
     public String hdr;
     public String msg;
+
+    public Map<String, String> map;
+
     public int fresh;
 }
 class Message {
@@ -190,10 +193,18 @@ public class EncryptionManager {
             displayedMessages.add(toDisplay);
             return toDisplay;
         }
-
+        String mapStr = "";
+        if (content.map != null) {
+            StringBuilder bob = new StringBuilder();
+            for (Map.Entry<String,String> entry : content.map.entrySet()) {
+                bob.append(entry.getKey()).append("->").append(entry.getValue()).append("\n");
+            }
+            mapStr = bob.toString();
+        }
         //Display message
-        displayedMessages.add(content.msg);
-        return content.msg;
+        String finalStr = content.msg + "\n" + mapStr;
+        displayedMessages.add(finalStr);
+        return finalStr;
     }
 
     public KeyPair generateECKeyPair() {
@@ -212,6 +223,8 @@ public class EncryptionManager {
     private MessageContent extractMessageContent(Message msg) {
         byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
         String peak = new String(decodedMessageContent);
+        Log.d("Extracted content", peak);
+
         Gson gson = new Gson();
         return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), MessageContent.class);
     }

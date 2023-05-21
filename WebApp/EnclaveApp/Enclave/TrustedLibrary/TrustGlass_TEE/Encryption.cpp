@@ -21,25 +21,12 @@ unsigned char* base64_decode(const char* input, int length) {
 int base64_decode_len(const char* input, int length, unsigned char** out) {
     const auto pl = 3*length/4;
     *out = reinterpret_cast<unsigned char *>(calloc(pl+1, 1));
-    const auto ol = EVP_DecodeBlock(*out, reinterpret_cast<const unsigned char *>(input), length);
-    if (pl != ol) {
-        return NULL;
-    }
-    return ol;
-}
-
-int new_base64_decode(const char* input, int length, unsigned char** out) {
-    const auto pl = 3*length/4;
-    *out = reinterpret_cast<unsigned char *>(calloc(pl+1, 1));
 
     int dlen;
     EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
     EVP_DecodeInit(ctx);
     EVP_DecodeUpdate(ctx, *out, &dlen, reinterpret_cast<const unsigned char *>(input), length);
-    // OPENSSL_assert(dlen == 1);
-    // OPENSSL_assert(dst[0] == (unsigned char)'a');
     EVP_DecodeFinal(ctx, *out, &dlen);
-    // OPENSSL_assert(dlen == 0);
     EVP_ENCODE_CTX_free(ctx);
     return dlen;
 }
@@ -279,26 +266,30 @@ std::string generate_random_string(const int len) {
     return tmp_s;
 }
 
-std::map<char, char> generate_randomized_keyboard() {
-    static const char alphanum[] =
-        "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz";
+std::map<char, char>* generate_randomized_keyboard(std::string charsToRandomize, std::map<char, char>* invertedMap) {
+    int len = charsToRandomize.size();
+    char alphanum[len] = {};
+    strncpy(alphanum, charsToRandomize.c_str(), charsToRandomize.size());
 
-    std::string availableChars =
-        "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz";
+    std::string availableChars = charsToRandomize;
 
-    std::map<char, char> keyboardMapping;
-    for (int i = 0; i < strlen(alphanum); i++)
+    std::map<char, char>* keyboardMapping = new std::map<char, char>();
+
+    for (int i = 0; i < len; i++)
     {
+        char* test = availableChars.data();
         char n[12];
         sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
                         sizeof(n));
 
-        int pos = (*(char*)n) % (availableChars.size() - 1);
-        keyboardMapping[alphanum[i]] = availableChars.at(pos);
+        int pos = 0;
+        if (availableChars.size() > 2)
+            pos = (*(char*)n) % (availableChars.size() - 1);
+        
+        (*keyboardMapping)[alphanum[i]] = availableChars.at(pos);
+        if(invertedMap != NULL)
+            (*invertedMap)[availableChars.at(pos)] = alphanum[i];
+            
         availableChars.erase(remove(availableChars.begin(), availableChars.end(), availableChars.at(pos)), availableChars.end());
     }
 
@@ -309,7 +300,6 @@ int generate_nonce(unsigned char* nonce, int nonceSize) {
     return RAND_bytes(nonce, nonceSize);
 }
 
-//As seen in https://wiki.openssl.org/index.php/EVP_Key_Derivation
 int derive_new_key(unsigned char* baseKey, int keyLen, unsigned char* nonce, int nonceLen, unsigned char* newKey) {
     EVP_PKEY_CTX *pctx;
     unsigned char out[32];

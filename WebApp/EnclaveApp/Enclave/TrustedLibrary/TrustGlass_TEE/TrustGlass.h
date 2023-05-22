@@ -67,6 +67,46 @@ class TrustGlass {
     void set_long_term_shared_key(std::string in);
 
     /**
+     * Standard function for session creation. 
+     * It calls TrustGlass::create_session and then prepares the message to be sent to the glasses 
+     * 
+     * Return: Message with Nonce and Server ID for the glasses to read
+    */
+    char* do_session_start();
+
+    /**
+     * Standard function for PIN login. 
+     * It creates a random mapping of numbers, sets TrustGlass to the correct state, and prepares the message to be sent to the glasses
+     * 
+     * Return: Message with PIN instructions for the glasses to read
+    */
+    char* do_pin_login();
+
+    /**
+     * Standard function for generic messages. 
+     * It prepares a message to be sent to the glasses, with the specified content and optional map.
+     * 
+     * Param: 
+     * - 'msgContent' = Message to be encrypted
+     * - 'map' = Optional keyboard mapping. Leave it empty or as "null" if not necessary
+     * 
+     * Return: Message for the glasses to read
+    */
+    char* do_message(std::string msgContent, std::string map);
+    
+    /**
+     * Standard function for error messages. 
+     * It prepares a message to be sent to the glasses, with the specified error message.
+     * Note: The message is not encrypted, since this can be used before a session is established
+     * 
+     * Param: 
+     * - 'errorMsg' = Message to be encrypted
+     * 
+     * Return: Error message for the glasses to read
+    */
+    char* do_error(std::string errorMsg);
+
+    /**
      * Generates an alphanumerical (a-zA-Z0-9) string of 6 character for challenge-response purposes
      * Also stores the generated result to check against in TrustGlass::verify_otp_entry
      * 
@@ -138,7 +178,8 @@ class TrustGlass {
 
     /**
      * Sets up TrustGlass for a new session with a specific set of user+smart glasses
-     * Tt generates a nonce and derives the session key with it
+     * It generates a nonce and derives the session key with it.
+     * Unless granularity is required, use TrustGlass::do_session_start instead
      * 
      * Return: The nonce required to derive the session key
     */

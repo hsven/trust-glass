@@ -50,13 +50,42 @@ void TrustGlass::set_long_term_shared_key(std::string in) {
     strncpy(longTermSharedKey, in.c_str(), in.length());
 }
 
+char* TrustGlass::do_session_start() {
+    const char* sessionData = this->create_session();
+
+    // send_response("HANDSHAKE", response, "null", false);
+    ResponseMessage* response = this->create_response("HANDSHAKE", sessionData, "null", false);
+    return response->generate_final();
+}
+
+char* TrustGlass::do_pin_login() {
+    std::map<char, char>* keyboard = this->create_random_keyboard("0123456789");
+    std::string keyboardOut = this->map_to_string(keyboard);
+
+    this->currentState = TrustGlassStates::IN_AUTH;
+    ResponseMessage* response = this->create_response("HANDSHAKE", "Please insert your PIN following the defined number mapping", keyboardOut, true);
+    return response->generate_final();
+}
+
+char* TrustGlass::do_error(std::string errorMsg) {
+    return this->create_response("ERROR", errorMsg, "null", false)->generate_final();
+}
+
+char* TrustGlass::do_message(std::string msgContent, std::string map) {
+    if (this->currentState != TrustGlassStates::CONNECTED) return "";
+    
+    if (map.empty())
+        map = "null";
+
+    return this->create_response("MSG", msgContent, map, true)->generate_final();
+}
+
 std::string TrustGlass::create_otp_value() {
     latestOTP = generate_random_string(6);
 
     return latestOTP;
 }
 
-// See https://stackoverflow.com/questions/73392097/totp-implementation-using-c-and-openssl
 bool TrustGlass::verify_otp_entry(const char* in) {
     return std::string(in) == latestOTP;
 }

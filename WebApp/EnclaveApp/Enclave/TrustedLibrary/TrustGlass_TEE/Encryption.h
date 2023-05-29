@@ -116,16 +116,19 @@ unsigned char* derive_shared_key(EC_KEY* privKey, const EC_POINT* peerKey, size_
 
 /**
  * Applies AES encryption to the specified plain text
+ * Mostly as seen in https://wiki.openssl.org/index.php/EVP_Authenticated_Encryption_and_Decryption
  * 
  * Param:
  * - 'plainText' = plain text to encrypt
  * - 'plainTextLen' = length of the input plain text
  * - 'key' = symmetric key to perform the operation with
  * - 'cipherText' = output argument specifing the resulting cipher text
+ * - 'iv' = output argument with the message-specific 16 byte IV
+ * - 'tag' = output argument with the 16 byte tag result of the encryption
  * 
  * Return: length of the resulting cipher text if the operation was successful, -1 otherwise
 */
-int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText);
+int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText, unsigned char* iv, unsigned char* tag);
 
 /**
  * Applies RSA encryption to the specified plain text

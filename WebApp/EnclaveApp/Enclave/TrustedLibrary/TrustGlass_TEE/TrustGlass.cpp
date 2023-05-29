@@ -117,9 +117,19 @@ std::string TrustGlass::retrieve_public_EC_session_key() {
 
 std::string TrustGlass::encrypt_string(std::string contentString) {
     //TODO: Message size should not be hardcoded
+    unsigned char total[32 + contentString.length() + 256];
     unsigned char encryptedMessage[contentString.length() + 256];
-    int msgLen = aes_encryption((unsigned char*) contentString.data(), contentString.length(), sessionKey, encryptedMessage);
-    return std::string(base64_encode(encryptedMessage, msgLen));
+    unsigned char iv[16];
+    unsigned char mac[16];
+    int msgLen = aes_encryption((unsigned char*) contentString.data(), contentString.length(), sessionKey, encryptedMessage, iv, mac);
+
+    //Prepend IV
+    memcpy(total, iv, 16);
+    //Encrypted Message
+    memcpy(total+16, encryptedMessage, msgLen);
+    //Append MAC
+    memcpy(total+16+msgLen, mac, 16);
+    return std::string(base64_encode(total, msgLen+32));
 }
 
 std::string TrustGlass::sign_string(std::string contentString) {

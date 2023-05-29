@@ -68,10 +68,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import pt.ulisboa.tecnico.trustglass.BuildConfig;
 
-class Handshake {
-    public String key;
-    public Map<String, String> map;
-}
 
 class MessageContent {
     public String hdr;
@@ -84,7 +80,7 @@ class MessageContent {
 class Message {
     public String msg;
     public String sig;
-    public boolean ses;
+    public boolean enc;
 }
 
 public class EncryptionManager {
@@ -116,7 +112,7 @@ public class EncryptionManager {
 
         //If in handshake step
         //TODO: Improve the check for an handshake message
-        if (messageCounter == 0 || !msg.ses) {
+        if (messageCounter == 0 && !msg.enc) {
             String decodedMessageContent = new String(Base64.decode(msg.msg, Base64.DEFAULT), StandardCharsets.UTF_8);
 
             MessageContent content = extractMessageContent(msg);
@@ -135,33 +131,9 @@ public class EncryptionManager {
                 return "ERROR: Incorrect expected header!";
             }
 
-            if (!BuildConfig.hasOTP) {
-                Handshake data = extractHandshakeData(content);
-                //Check authenticity
-                if (!checkAuthenticity(decodedMessageContent, msg, longTermPeerKey)) {
-                    return "ERROR: Hash mismatch in the received message!";
-                }
-
-
-//            messageCounter = 1;
-
-//            Map<String, String> yourMap = /*..;
-                StringBuilder bob = new StringBuilder();
-                for (Map.Entry<String,String> entry : data.map.entrySet()) {
-                    bob.append(entry.getKey()).append("->").append(entry.getValue()).append("\n");
-                }
-                String mapStr = bob.toString();
-
-                String result = handshakeSetup(data.key) + "Use the following mapping to input your password: " + mapStr;
-                displayedMessages.add(result);
-                return result;
-            }
-            else {
-
-                String result = handshakeSetup(content.msg);
-                displayedMessages.add(result);
-                return result;
-            }
+            String result = handshakeSetup(content.msg);
+            displayedMessages.add(result);
+            return result;
         }
 
         //Decrypt
@@ -184,25 +156,6 @@ public class EncryptionManager {
         }
         messageCounter = content.fresh + 1;
 
-        //Check authenticity
-        if (!checkAuthenticity(decryptedMsg, msg, longTermPeerKey)) {
-            return "ERROR: Hash mismatch in the received message!";
-        }
-
-        if (content.hdr.equals("OTP")) {
-//            byte[] decodedKey = Base64.decode("k72vE3HJUNCbVqbcKo5el9QvhE/rEH86c/f6LmnBp3w=", Base64.DEFAULT);
-//            SecretKey key = new SecretKeySpec(decodedKey, "AES");
-
-            //Encryption test
-//            String res = AESEncrypt("AAAAAA", key);
-//            Log.d("TEST", res);
-
-
-//            String challenge = AESDecrypt(content.msg, key);
-            String toDisplay = "OTP Request:\nWrite the following in the interface:\n" + content.msg;
-            displayedMessages.add(toDisplay);
-            return toDisplay;
-        }
         String mapStr = "";
         if (content.map != null) {
             StringBuilder bob = new StringBuilder();
@@ -239,12 +192,6 @@ public class EncryptionManager {
         return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), MessageContent.class);
     }
 
-    private Handshake extractHandshakeData(MessageContent msg) {
-        byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
-        String peak = new String(decodedMessageContent);
-        Gson gson = new Gson();
-        return gson.fromJson(new String(decodedMessageContent, StandardCharsets.UTF_8), Handshake.class);
-    }
 
     private void importKeys() {
         try {
@@ -352,38 +299,11 @@ public class EncryptionManager {
         Log.d("LTK:", new String(longTermSharedKey));
         Log.d("Received NONCE", receivedPubKey);
         byte[] decodedKey = Base64.decode(receivedPubKey, Base64.DEFAULT);
-//
-//        peerKey = ecPointToPublicKey(new String(decodedKey));
-//        if (BuildConfig.hasOTP)
-//            sessionKeyPair = generateECKeyPair();
-//
-//        if (peerKey == null || sessionKeyPair == null) {
-//            return "Handshake ERROR\nFailed to either generate the session keys or retrieve the peer key";
-//        }
 
         symKey = generateSharedSecret(decodedKey);
         if (symKey == null) {
             return "Handshake ERROR\nFailed to generate Shared Key";
         }
-//        String key = Base64.encodeToString(symKey.getEncoded(), Base64.DEFAULT);
-//
-//        //No wrap simplifies the debug process (no need to hand write codes or copy-paste 76 characters at a time)
-//        ECPublicKey ecPubKey = (ECPublicKey) sessionKeyPair.getPublic();
-//        ECPoint publicPoint = ecPubKey.getW();
-//
-//        String compressedKeyPrefix = "";
-//        if(publicPoint.getAffineY().mod(new BigInteger("2")).equals(BigInteger.ZERO))
-//            compressedKeyPrefix = "02";
-//        else
-//            compressedKeyPrefix = "03";
-//
-//        Log.d("pointX:", publicPoint.getAffineX().toString(16));
-//        Log.d("pointY:", publicPoint.getAffineY().toString(16));
-//
-//        String outputHex = compressedKeyPrefix + publicPoint.getAffineX().toString(16);
-//        byte[] outputBytes = new BigInteger(outputHex, 16).toByteArray();
-//        String out = Base64.encodeToString(outputBytes, Base64.DEFAULT);
-//
 //        Log.d("SecretKeyBase64:", key);
 //        Log.d("PubKeyInHex", outputHex);
 //        Log.d("PubKeyToSend", out);
@@ -395,21 +315,22 @@ public class EncryptionManager {
 //        else
     }
 
-    private boolean checkAuthenticity(String decryptedMsg, Message msg, ECPublicKey key) {
-        try {
-            Signature sig = Signature.getInstance("SHA256withECDSA");
-            sig.initVerify(key);
-            sig.initVerify(key);
-            sig.update(decryptedMsg.getBytes());
-            return sig.verify(Base64.decode(msg.sig, Base64.DEFAULT));
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidKeyException e) {
-            throw new RuntimeException(e);
-        } catch (SignatureException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    //Unnecesasry. TODO: Remove later
+   private boolean checkAuthenticity(String decryptedMsg, Message msg, ECPublicKey key) {
+       try {
+           Signature sig = Signature.getInstance("SHA256withECDSA");
+           sig.initVerify(key);
+           sig.initVerify(key);
+           sig.update(decryptedMsg.getBytes());
+           return sig.verify(Base64.decode(msg.sig, Base64.DEFAULT));
+       } catch (NoSuchAlgorithmException e) {
+           throw new RuntimeException(e);
+       } catch (InvalidKeyException e) {
+           throw new RuntimeException(e);
+       } catch (SignatureException e) {
+           throw new RuntimeException(e);
+       }
+   }
 
     private ECPublicKey ecPointToPublicKey(String hexECPoint) {
         if (!hexECPoint.startsWith("04")) {

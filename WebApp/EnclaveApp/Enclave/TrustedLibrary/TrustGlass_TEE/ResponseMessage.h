@@ -22,15 +22,13 @@ class MessageContent {
 class ResponseMessage {
     public:
         std::string content;
-        std::string digitalSignature;
 
         std::string finalMessage = "";
-        bool signedWithSession = false;
+        bool encrypted = false;
     
         char* generate_final() {
             finalMessage = "{\"msg\":\"" + content + 
-                "\",\"sig\":\"" + digitalSignature +
-                "\",\"ses\":" + (signedWithSession ? "true" : "false") +
+                "\",\"enc\":" + (encrypted ? "true" : "false") +
                 "}";
 
             return finalMessage.data();

@@ -11,8 +11,10 @@ enum class TrustGlassStates {
 };
 
 class TrustGlass {
+    //TODO: Delete these two keys, not anymore required
     EVP_PKEY* longTermKeyPair = NULL;
     EVP_PKEY* longTermPeerKey = NULL;
+
     char* otpSharedKey = NULL;
     std::string latestOTP = "";
     std::map<char, char>* latestKeyboard;
@@ -42,7 +44,7 @@ class TrustGlass {
     */
     std::string retrieve_public_EC_session_key();
 
-    /**
+    /** 
      * Sets the long term EC key pair of the host enclave
      * 
      * Param: 
@@ -136,6 +138,8 @@ class TrustGlass {
     std::string encrypt_string(std::string contentString);
 
     /**
+     * DEPRECATED - The TrustGlass protocol does not sign messages
+     * 
      * Signs a string with curretly loaded long-term EC private key of the enclave
      * 
      * Param: 
@@ -191,9 +195,10 @@ class TrustGlass {
      * Param:
      * - 'headerMsg' = header to include in the object
      * - 'mainMsg' = message to include in the object
-     * - 'withSecure' = applies the necessary encryption and signing of the message
+     * - 'map' = map to include, used for randomized mapping of characters
+     * - 'isEncrypted' = applies the necessary encryption and signing of the message
      * 
      * Return: resulting ResponseMessage object
     */
-    ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, std::string map, bool signWithSessionKeys);
+    ResponseMessage* create_response(std::string headerMsg, std::string mainMsg, std::string map, bool isEncrypted);
 };

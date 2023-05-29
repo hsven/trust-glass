@@ -137,6 +137,10 @@ std::string TrustGlass::sign_string(std::string contentString) {
 }
 
 std::map<char, char>* TrustGlass::create_random_keyboard(std::string keyboardToRandomize) {
+    //Reset previous maps 
+    free(latestInvertedKeyboard);
+    free(latestKeyboard);
+
     latestInvertedKeyboard = new std::map<char, char>(); 
     latestKeyboard = generate_randomized_keyboard(keyboardToRandomize, latestInvertedKeyboard);
     return latestKeyboard;
@@ -197,7 +201,7 @@ const char* TrustGlass::create_session() {
     return nonceB64;
 }
 
-ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, std::string map, bool signWithSessionKeys) {
+ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, std::string map, bool isEncrypted) {
     //Generate Response Message
     ResponseMessage* response = new ResponseMessage();
     MessageContent* content = new MessageContent();
@@ -211,14 +215,10 @@ ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string 
     response->content = base64_encode((unsigned char*) contentString.data(), contentString.length());
 
     //If message requires security properties
-    if (signWithSessionKeys) {
+    if (isEncrypted) {
         response->content = encrypt_string(contentString).data();
     }
-    else {
-    }
-
-    response->digitalSignature = sign_message(contentString.c_str(), longTermKeyPair);  
-    response->signedWithSession = signWithSessionKeys;
+    response->encrypted = isEncrypted;
 
     // //Prints for DEBUG purposes
     // printf("Message: %s\n", response->content.c_str());

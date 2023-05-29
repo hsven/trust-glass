@@ -271,41 +271,46 @@ std::string generate_random_string(const int len) {
 
 
     for (int i = 0; i < len; ++i) {
-        char n[12];
+        uint32_t n;
         sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
                         sizeof(n));
 
-        tmp_s += alphanum[(*(char*)n) % (sizeof(alphanum) - 1)];
+        tmp_s += alphanum[n % (sizeof(alphanum) - 1)];
     }
     
     return tmp_s;
 }
 
 std::map<char, char>* generate_randomized_keyboard(std::string charsToRandomize, std::map<char, char>* invertedMap) {
+    std::map<char, char>* keyboardMapping = new std::map<char, char>();
+    
     int len = charsToRandomize.size();
+    int maxLen = charsToRandomize.size();
     char alphanum[len] = {};
+    char shuffled[len] = {};
+
     strncpy(alphanum, charsToRandomize.c_str(), charsToRandomize.size());
 
-    std::string availableChars = charsToRandomize;
-
-    std::map<char, char>* keyboardMapping = new std::map<char, char>();
-
-    for (int i = 0; i < len; i++)
-    {
-        char* test = availableChars.data();
-        char n[12];
-        sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
-                        sizeof(n));
+    for (int i = 0; i < len; i++) {
+        uint32_t val;
+        sgx_read_rand(reinterpret_cast<unsigned char*>(&val),
+                        sizeof(val));
 
         int pos = 0;
-        if (availableChars.size() > 2)
-            pos = (*(char*)n) % (availableChars.size() - 1);
+        if (maxLen > 2)
+            pos = val % (maxLen - 1);
         
-        (*keyboardMapping)[alphanum[i]] = availableChars.at(pos);
+        shuffled[i] = alphanum[pos];
+        alphanum[pos] = alphanum[maxLen - 1];
+        alphanum[maxLen--] = '\0';
+    }
+
+    for (int i = 0; i < len; i++) {
+        (*keyboardMapping)[charsToRandomize.at(i)] = shuffled[i];
+
         if(invertedMap != NULL)
-            (*invertedMap)[availableChars.at(pos)] = alphanum[i];
+            (*invertedMap)[shuffled[i]] = charsToRandomize.at(i);
             
-        availableChars.erase(remove(availableChars.begin(), availableChars.end(), availableChars.at(pos)), availableChars.end());
     }
 
     return keyboardMapping;

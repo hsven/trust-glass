@@ -67,26 +67,10 @@ void ecall_handshake() {
         abort();
 }
 
-void ecall_verify_auth(std::string in) {
+void ecall_pin_auth() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    ret = ecall_auth(global_eid, in.c_str());
-    if (ret != SGX_SUCCESS)
-        abort();
-}
-
-void ecall_request_otp_token() {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    ret = ecall_request_otp_challenge(global_eid);
-    if (ret != SGX_SUCCESS)
-        abort();
-}
-
-void ecall_verify_otp_token(std::string in) {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    ret = ecall_verify_otp_reponse(global_eid, in.c_str());
+    ret = ecall_pin_login(global_eid);
     if (ret != SGX_SUCCESS)
         abort();
 }

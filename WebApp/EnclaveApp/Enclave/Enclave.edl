@@ -49,11 +49,9 @@ enclave {
         public void ecall_receive_key_pair([in, string] const char* in);
         public void ecall_receive_peer_key([in, string] const char* in);
         public void ecall_receive_long_term_shared_key([in, string] const char* in);
-        public void ecall_auth([in, string] const char* in);
         public void ecall_setup(void);
         public void ecall_receive_input([in, string] const char* in);
-        public void ecall_request_otp_challenge(void);
-        public void ecall_verify_otp_reponse([in, string] const char* in);
+        public void ecall_pin_login(void);
     };
 
 

@@ -260,14 +260,11 @@ int SGX_CDECL main(int argc, char *argv[])
             /* Get message from client; will fail if client closes connection */
             std::string in = receive_message(ssl);
 
-            ecall_request_otp_token();
-            in = receive_message(ssl);
-            ecall_verify_otp_token(in);
-
+            ecall_pin_auth();
             /* Echo loop */
             while (true) {
                 // /* Get message from client; will fail if client closes connection */
-                in = receive_message(ssl);
+                std::string in = receive_message(ssl);
                 /* Look for kill switch */
                 std::cout << "Received via SSL: " << in << std::endl;
 

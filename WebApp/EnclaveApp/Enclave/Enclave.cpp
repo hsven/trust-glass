@@ -57,9 +57,13 @@ void send_response(std::string header, std::string content, std::string map, boo
     ocall_send_response(finalMsg, strlen(finalMsg));
 }
 
+void send_response_compact(char* content) {
+    ocall_send_response(content, strlen(content));
+}
+
 void generate_welcome_message() {
     std::string resStr = resManager.generate_home_message();
-    send_response("MSG", "Welcome!\n" + resStr, "null", true);
+    send_response_compact(trustGlass->do_message(resStr, ""));
 }
 
 
@@ -92,59 +96,31 @@ void ecall_receive_long_term_shared_key(const char* in) {
 }
 
 void ecall_pin_login() {
-
-    std::map<char, char>* keyboard = trustGlass->create_random_keyboard("0123456789");
-    std::string keyboardOut = trustGlass->map_to_string(keyboard);
-
-    trustGlass->currentState = TrustGlassStates::IN_AUTH;
-    send_response("HANDSHAKE", "Please insert your PIN following the defined number mapping", keyboardOut, true);
+    send_response_compact(trustGlass->do_pin_login());
 }
 
-void ecall_request_otp_challenge() {
-    std::string otp = trustGlass->create_otp_value();
-    trustGlass->currentState = TrustGlassStates::IN_OTP;
-    send_response("OTP", otp, "null", true);
-}
-
-void ecall_verify_otp_reponse(const char* in) {
-    printf("%s\n", in);
-    if (trustGlass->verify_otp_entry(in))
-        ecall_pin_login();
-    else
-        send_response("ERROR", "OTP ERROR - Response did not match challenge", "null", false);
-}
-
-
-
-void ecall_auth(const char* input) {
+void verify_auth(const char* input) {
     const char* result = trustGlass->decipher_randomized_string(input).c_str();
     printf("Decipher Result: %s\n", result);
+    
     // TODO: Don't hardcode passwords
     if (!strcmp(result, "1234"))
         generate_welcome_message();
     else 
-        send_response("ERROR", "AUTH ERROR - Wrong Password", "null", false);
+        send_response_compact(trustGlass->do_error("AUTH ERROR - Wrong Password"));
 }
 
 void ecall_setup() {
-    const char* response = trustGlass->create_session();
-
-    printf("Encoded LTK: %s\n", trustGlass->longTermSharedKey);
-    printf("Encoded NONCE: %s\n", response);
-    printf("Encoded session key: %s\n", base64_encode(trustGlass->sessionKey, 32));
-    send_response("HANDSHAKE", response, "null", false);
+    send_response_compact(trustGlass->do_session_start());
 }
 
 void ecall_receive_input(const char* in) {
-    if (trustGlass->currentState == TrustGlassStates::IN_OTP) {
-        ecall_verify_otp_reponse(in);
-        return;
-    }
     if (trustGlass->currentState == TrustGlassStates::IN_AUTH) {
-        ecall_auth(in);
+        verify_auth(in);
         return;
     }
+
     std::string map = "null";
     std::string content = resManager.prepare_response(in, &map);
-    send_response("MSG", content, map, true);
+    send_response_compact(trustGlass->do_message(content, map));
 }

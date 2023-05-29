@@ -161,28 +161,37 @@ unsigned char* derive_shared_key(EC_KEY* privKey, const EC_POINT* peerKey, size_
 	return secret;
 }
 
-//Taken from https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
-int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText) {
+int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText, unsigned char* iv, unsigned char* tag) {
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
 
     // A 128 bit IV
-    // TODO: Remove this, it should not be hardcoded
-    unsigned char *iv = (unsigned char *)"0123456789012345";
+    if(1 != generate_nonce(iv, 16)) {
+        return -1;
+    }
 
     /* Create and initialise the context */
     if(!(ctx = EVP_CIPHER_CTX_new())) {
         return -1;
     }
+
+    /* Initialise the encryption operation. */
+    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
     /*
-     * Initialise the encryption operation. IMPORTANT - ensure you use a key
-     * and IV size appropriate for your cipher
-     * In this example we are using 256 bit AES (i.e. a 256 bit key). The
-     * IV size for *most* modes is the same as the block size. For AES this
-     * is 128 bits
+     * Set IV length to 16 bytes
      */
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
+    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    /* Initialise key and IV */
+    if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) {
         EVP_CIPHER_CTX_free(ctx);
         return -1;
     }
@@ -198,14 +207,20 @@ int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char*
     ciphertext_len = len;
 
     /*
-     * Finalise the encryption. Further ciphertext bytes may be written at
-     * this stage.
+     * Finalise the encryption. Normally ciphertext bytes may be written at
+     * this stage, but this does not occur in GCM mode
      */
     if(1 != EVP_EncryptFinal_ex(ctx, cipherText + len, &len)) {
         EVP_CIPHER_CTX_free(ctx);
         return -1;
     }
     ciphertext_len += len;
+
+    /* Get the tag */
+    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
 
     /* Clean up */
     EVP_CIPHER_CTX_free(ctx);

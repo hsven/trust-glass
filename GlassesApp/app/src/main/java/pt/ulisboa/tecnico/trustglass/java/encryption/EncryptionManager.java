@@ -39,6 +39,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
@@ -54,12 +55,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map;
 
+import javax.crypto.AEADBadTagException;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -162,7 +165,14 @@ public class EncryptionManager {
         }
 
         //Decrypt
-        String decryptedMsg = AESDecrypt(msg.msg, symKey);
+        String decryptedMsg = null;
+        try {
+            decryptedMsg = AESDecrypt(msg.msg, symKey);
+        } catch (InvalidKeyException | BadPaddingException e) {
+            String errorMsg = "ERROR - Failed to decrypt the message. " + e.getMessage();
+            displayedMessages.add(errorMsg);
+            return errorMsg;
+        }
 
         //Extract
         MessageContent content = gson.fromJson(decryptedMsg, MessageContent.class);
@@ -466,40 +476,31 @@ public class EncryptionManager {
         }
     }
 
-    private String AESDecrypt(String cipherText, SecretKey decryptionKey) {
-        // A 128 bit IV
-        // TODO: Remove this, it should not be hardcoded
-        byte[] iv = "0123456789012345".getBytes(StandardCharsets.UTF_8);
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
-
+    private String AESDecrypt(String cipherText, SecretKey decryptionKey) throws InvalidKeyException, BadPaddingException {
         try {
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            cipher.init(Cipher.DECRYPT_MODE, decryptionKey, ivSpec);
             byte[] cipherBytes = Base64.decode(cipherText, Base64.DEFAULT);
-                byte[] plainText = cipher.doFinal(cipherBytes);
+
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            AlgorithmParameterSpec gcmParameterSpec = new GCMParameterSpec(128, cipherBytes, 0, 16);
+
+            cipher.init(Cipher.DECRYPT_MODE, decryptionKey, gcmParameterSpec);
+
+            byte[] plainText = cipher.doFinal(cipherBytes, 16, cipherBytes.length - 16);
             return new String(plainText);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchPaddingException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidAlgorithmParameterException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidKeyException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalBlockSizeException e) {
-            throw new RuntimeException(e);
-        } catch (BadPaddingException e) {
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException e) {
+            //Likely programmer error
             throw new RuntimeException(e);
         }
     }
 
     private String AESEncrypt(String plainText, SecretKey key) {
         byte[] iv = "0123456789012345".getBytes(StandardCharsets.UTF_8);
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
 
         try {
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            AlgorithmParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
+
+            cipher.init(Cipher.ENCRYPT_MODE, key, gcmParameterSpec);
 //            byte[] cipherBytes = Base64.decode(plainText, Base64.DEFAULT);
             byte[] cipherText = cipher.doFinal(plainText.getBytes("UTF-8"));
             return Base64.encodeToString(cipherText, Base64.DEFAULT);

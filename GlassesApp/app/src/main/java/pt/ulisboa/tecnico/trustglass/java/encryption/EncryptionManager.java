@@ -159,8 +159,9 @@ public class EncryptionManager {
         String mapStr = "";
         if (content.map != null) {
             StringBuilder bob = new StringBuilder();
+            bob.append("\nYou can scroll this mapping to view all the characters.\nFROM ---> TO\n");
             for (Map.Entry<String,String> entry : content.map.entrySet()) {
-                bob.append(entry.getKey()).append("->").append(entry.getValue()).append("\n");
+                bob.append("\t\t\t\t\t "+entry.getKey()).append(" ---> ").append(entry.getValue()).append("\n");
             }
             mapStr = bob.toString();
         }

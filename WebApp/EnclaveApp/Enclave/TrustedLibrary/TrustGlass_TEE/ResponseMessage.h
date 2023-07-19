@@ -4,6 +4,7 @@ class MessageContent {
     public:
         std::string header;
         std::string message;
+        std::string mapStr = "";
         //Freshness token is incorporated inside the message, 
         // otherwise there's no obvious way to prevent tampering on it
         int freshnessToken;
@@ -12,7 +13,8 @@ class MessageContent {
         std::string generate_final() {
             return "{\"hdr\":\"" + header + 
                 "\",\"msg\":\"" + message + 
-                "\",\"fresh\":" + std::to_string(freshnessToken) +
+                "\",\"map\":" + mapStr +
+                ",\"fresh\":" + std::to_string(freshnessToken) +
                 "}";
         }
 };
@@ -20,15 +22,13 @@ class MessageContent {
 class ResponseMessage {
     public:
         std::string content;
-        std::string digitalSignature;
 
         std::string finalMessage = "";
-        bool signedWithSession = false;
+        bool encrypted = false;
     
         char* generate_final() {
             finalMessage = "{\"msg\":\"" + content + 
-                "\",\"sig\":\"" + digitalSignature +
-                "\",\"ses\":" + (signedWithSession ? "true" : "false") +
+                "\",\"enc\":" + (encrypted ? "true" : "false") +
                 "}";
 
             return finalMessage.data();

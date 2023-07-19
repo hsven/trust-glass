@@ -80,7 +80,7 @@ button {
             <form action="/home/" method="post">  
                 <div class="container">   
                     {% csrf_token %}
-                    {{ form }}
+                    <!-- {{ form }} -->
         
                     <!-- <label>Username: </label>   
                     <input type="text" placeholder="Enter Username" name="username" required>  
@@ -97,7 +97,7 @@ button {
             </form>   
         </div>
         <div class="column">
-            <center> <h3> Server Session Key </h3> </center>
+            <center> <h3> Server Message </h3> </center>
             <div class="box">
                 {{ qrCode | safe }}  
             </div>

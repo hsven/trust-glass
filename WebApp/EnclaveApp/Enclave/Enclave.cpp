@@ -48,39 +48,22 @@ int printf(const char* fmt, ...)
     vsnprintf(buf, BUFSIZ, fmt, ap);
     va_end(ap);
     ocall_debug_print(buf);
-    // ocall_print_string(buf);
-    // ocall_print_qr_code(buf);
     return (int)strnlen(buf, BUFSIZ - 1) + 1;
 }
 
-void send_response(std::string header, std::string content, bool signWithSessionKeys) {
-    ResponseMessage* response = trustGlass->create_response(header, content, signWithSessionKeys);
+void send_response(std::string header, std::string content, std::string map, bool signWithSessionKeys) {
+    ResponseMessage* response = trustGlass->create_response(header, content, map, signWithSessionKeys);
     char* finalMsg = response->generate_final();
     ocall_send_response(finalMsg, strlen(finalMsg));
 }
 
+void send_response_compact(char* content) {
+    ocall_send_response(content, strlen(content));
+}
+
 void generate_welcome_message() {
-    resManager.userMenu.clear();
-    std::string opt1 = generate_random_string(4);
-
-    std::string opt2 = "abcd";
-    do {
-        opt2 = generate_random_string(4);
-    } while (opt1.compare(opt2) == 0);
-    std::string opt3 = "abcd";
-    do {
-        opt3 = generate_random_string(4);
-    } while (opt1.compare(opt3) == 0 && opt2.compare(opt3) == 0);
-
-    resManager.userMenu = {
-        {opt1, MenuOptions::EXAMPLE_1},
-        {opt2, MenuOptions::EXAMPLE_2},
-        {opt3, MenuOptions::EXAMPLE_5},
-    };
-
-    std::string resStr = "Welcome!\nType:\n- \'" + opt1 + "\' to enter Menu 1.\n- \'" + opt2 + "\' to enter Menu 2.\n- \'" + opt3 + "\' to enter echo mode.";
-    
-    send_response("MSG", resStr, true);
+    std::string resStr = resManager.generate_home_message();
+    send_response_compact(trustGlass->do_message(resStr, ""));
 }
 
 
@@ -92,6 +75,7 @@ void ecall_hello_world(void)
 
 void ecall_init_TrustGlass() {
     trustGlass = new TrustGlass();
+    resManager.set_TrustGlass(trustGlass);
 }
 
 
@@ -106,46 +90,37 @@ void ecall_receive_peer_key(const char* in) {
     trustGlass->set_peer_key(in);
 }
 
-void ecall_receive_otp_key(const char * in) {
-    printf("%s\n", in);
-    trustGlass->set_otp_key(in);
+void ecall_receive_long_term_shared_key(const char* in) {
+    printf("LT Key: %s\n", in);
+    trustGlass->set_long_term_shared_key(in);
 }
 
-void ecall_request_otp_challenge() {
-    // trustGlass->create_otp_value();
-    char* otp = trustGlass->create_otp_value().data();
-    printf("%s\n", otp);
-    send_response("OTP", otp, true);
+void ecall_pin_login() {
+    send_response_compact(trustGlass->do_pin_login());
 }
 
-void ecall_verify_otp_reponse(const char* in) {
-    printf("%s\n", in);
-    if (trustGlass->verify_otp_entry(in))
+void verify_auth(const char* input) {
+    const char* result = trustGlass->decipher_randomized_string(input).c_str();
+    printf("Decipher Result: %s\n", result);
+    
+    // TODO: Don't hardcode passwords
+    if (!strcmp(result, "1234"))
         generate_welcome_message();
-        // send_response("OTP", "OTP Success", true);
-    else
-        send_response("ERROR", "OTP ERROR - Response did not match challenge", false);
+    else 
+        send_response_compact(trustGlass->do_error("AUTH ERROR - Wrong Password"));
 }
 
-void ecall_start_setup() {
-    const char* pubKey = trustGlass->retrieve_public_EC_session_key().c_str();
-    printf("%s\n", pubKey);
-    // if(pubKey.empty()) {
-    //     send_response("ERROR", "Setup: Failed to retrieve public EC key", false);
-    //     return;
-    // }
-
-    send_response("HANDSHAKE", pubKey, false);
-}
-
-void ecall_finish_setup(const char* encodedPeerKey) {
-    if(!trustGlass->derive_secret_key(encodedPeerKey)) {
-        send_response("ERROR", "Setup: Faied to process the received key", false);
-        return;
-    }
-    // generate_welcome_message();
+void ecall_setup() {
+    send_response_compact(trustGlass->do_session_start());
 }
 
 void ecall_receive_input(const char* in) {
-    send_response("MSG", resManager.prepare_response(in), true);
+    if (trustGlass->currentState == TrustGlassStates::IN_AUTH) {
+        verify_auth(in);
+        return;
+    }
+
+    std::string map = "null";
+    std::string content = resManager.prepare_response(in, &map);
+    send_response_compact(trustGlass->do_message(content, map));
 }

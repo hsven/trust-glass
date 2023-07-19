@@ -9,6 +9,7 @@
 #include <openssl/rand.h>
 #include <openssl/pem.h>
 #include <openssl/hmac.h>
+#include <openssl/kdf.h>
 #include <string>
 #include <sgx_trts.h>
 
@@ -115,16 +116,19 @@ unsigned char* derive_shared_key(EC_KEY* privKey, const EC_POINT* peerKey, size_
 
 /**
  * Applies AES encryption to the specified plain text
+ * Mostly as seen in https://wiki.openssl.org/index.php/EVP_Authenticated_Encryption_and_Decryption
  * 
  * Param:
  * - 'plainText' = plain text to encrypt
  * - 'plainTextLen' = length of the input plain text
  * - 'key' = symmetric key to perform the operation with
  * - 'cipherText' = output argument specifing the resulting cipher text
+ * - 'iv' = output argument with the message-specific 16 byte IV
+ * - 'tag' = output argument with the 16 byte tag result of the encryption
  * 
  * Return: length of the resulting cipher text if the operation was successful, -1 otherwise
 */
-int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText);
+int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText, unsigned char* iv, unsigned char* tag);
 
 /**
  * Applies RSA encryption to the specified plain text
@@ -147,4 +151,39 @@ bool rsa_encryption(std::string data, RSA* pkey);
 */
 std::string generate_random_string(const int len);
 
-std::map<char, char> generate_randomized_keyboard();
+/**
+ * Creates a randomized keyboard mapping.
+ * The characters to randomizee are user-specified
+ * 
+ * Param:
+ * - 'charsToRandomize' = string of characters that will be affected by this operation
+ * - 'invertedMap' = an inverted mapping of the keyboard (values to keys). Leave at null if not needed
+ * 
+ * Return: pointer to the randomized keyboard map
+*/
+std::map<char, char>* generate_randomized_keyboard(std::string charsToRandomize, std::map<char, char>* invertedMap);
+
+/**
+ * Creates a nonce of specified size.
+ * 
+ * Param:
+ * - 'nonce' = pointer to output the resulting nonce
+ * - 'nonceSize' = byte size of the nonce to be generated 
+ * 
+ * Return: 1 if the operation was successful, 0 otherwise
+*/
+int generate_nonce(unsigned char* nonce, int nonceSize);
+
+/**
+ * Applies HKDF to a base key to derive a new one, as seen in https://wiki.openssl.org/index.php/EVP_Key_Derivation
+ * 
+ * Param:
+ * - 'baseKey' = key to use in the derivation
+ * - 'keyLen' = length of the introduced baseKey
+ * - 'nonce' = nonce to be used in the derivation 
+ * - 'nonceLen' = length of the introduced nonce
+ * - 'newKey' = resulting key of the derivation
+ * 
+ * Return: 0 if the operation was successful, -1 otherwise
+*/
+int derive_new_key(unsigned char* baseKey, int keyLen, unsigned char* nonce, int nonceLen, unsigned char* newKey);

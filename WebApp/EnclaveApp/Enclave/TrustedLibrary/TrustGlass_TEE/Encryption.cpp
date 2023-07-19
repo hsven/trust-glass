@@ -21,11 +21,14 @@ unsigned char* base64_decode(const char* input, int length) {
 int base64_decode_len(const char* input, int length, unsigned char** out) {
     const auto pl = 3*length/4;
     *out = reinterpret_cast<unsigned char *>(calloc(pl+1, 1));
-    const auto ol = EVP_DecodeBlock(*out, reinterpret_cast<const unsigned char *>(input), length);
-    if (pl != ol) {
-        return NULL;
-    }
-    return ol;
+
+    int dlen;
+    EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+    EVP_DecodeInit(ctx);
+    EVP_DecodeUpdate(ctx, *out, &dlen, reinterpret_cast<const unsigned char *>(input), length);
+    EVP_DecodeFinal(ctx, *out, &dlen);
+    EVP_ENCODE_CTX_free(ctx);
+    return dlen;
 }
 
 std::string sign_message(const char* message, EVP_PKEY* pKey) {
@@ -158,28 +161,37 @@ unsigned char* derive_shared_key(EC_KEY* privKey, const EC_POINT* peerKey, size_
 	return secret;
 }
 
-//Taken from https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
-int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText) {
+int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char* key, unsigned char* cipherText, unsigned char* iv, unsigned char* tag) {
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
 
     // A 128 bit IV
-    // TODO: Remove this, it should not be hardcoded
-    unsigned char *iv = (unsigned char *)"0123456789012345";
+    if(1 != generate_nonce(iv, 16)) {
+        return -1;
+    }
 
     /* Create and initialise the context */
     if(!(ctx = EVP_CIPHER_CTX_new())) {
         return -1;
     }
+
+    /* Initialise the encryption operation. */
+    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
     /*
-     * Initialise the encryption operation. IMPORTANT - ensure you use a key
-     * and IV size appropriate for your cipher
-     * In this example we are using 256 bit AES (i.e. a 256 bit key). The
-     * IV size for *most* modes is the same as the block size. For AES this
-     * is 128 bits
+     * Set IV length to 16 bytes
      */
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
+    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+
+    /* Initialise key and IV */
+    if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) {
         EVP_CIPHER_CTX_free(ctx);
         return -1;
     }
@@ -195,14 +207,20 @@ int aes_encryption(unsigned char* plainText, size_t plainTextLen, unsigned char*
     ciphertext_len = len;
 
     /*
-     * Finalise the encryption. Further ciphertext bytes may be written at
-     * this stage.
+     * Finalise the encryption. Normally ciphertext bytes may be written at
+     * this stage, but this does not occur in GCM mode
      */
     if(1 != EVP_EncryptFinal_ex(ctx, cipherText + len, &len)) {
         EVP_CIPHER_CTX_free(ctx);
         return -1;
     }
     ciphertext_len += len;
+
+    /* Get the tag */
+    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag)) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
 
     /* Clean up */
     EVP_CIPHER_CTX_free(ctx);
@@ -253,38 +271,87 @@ std::string generate_random_string(const int len) {
 
 
     for (int i = 0; i < len; ++i) {
-        char n[12];
+        uint32_t n;
         sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
                         sizeof(n));
 
-        tmp_s += alphanum[(*(char*)n) % (sizeof(alphanum) - 1)];
+        tmp_s += alphanum[n % (sizeof(alphanum) - 1)];
     }
     
     return tmp_s;
 }
 
-std::map<char, char> generate_randomized_keyboard() {
-    static const char alphanum[] =
-        "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz";
+std::map<char, char>* generate_randomized_keyboard(std::string charsToRandomize, std::map<char, char>* invertedMap) {
+    std::map<char, char>* keyboardMapping = new std::map<char, char>();
+    
+    int len = charsToRandomize.size();
+    int maxLen = charsToRandomize.size();
+    char alphanum[len] = {};
+    char shuffled[len] = {};
 
-    std::string availableChars =
-        "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz";
+    strncpy(alphanum, charsToRandomize.c_str(), charsToRandomize.size());
 
-    std::map<char, char> keyboardMapping;
-    for (int i = 0; i < strlen(alphanum); i++)
-    {
-        char n[12];
-        sgx_read_rand(reinterpret_cast<unsigned char*>(&n),
-                        sizeof(n));
+    for (int i = 0; i < len; i++) {
+        uint32_t val;
+        sgx_read_rand(reinterpret_cast<unsigned char*>(&val),
+                        sizeof(val));
 
-        int pos = (*(char*)n) % (availableChars.size() - 1);
-        keyboardMapping[alphanum[i]] = availableChars.at(pos);
-        availableChars.erase(remove(availableChars.begin(), availableChars.end(), availableChars.at(pos)), availableChars.end());
+        int pos = 0;
+        if (maxLen > 2)
+            pos = val % (maxLen - 1);
+        
+        shuffled[i] = alphanum[pos];
+        alphanum[pos] = alphanum[maxLen - 1];
+        alphanum[maxLen--] = '\0';
+    }
+
+    for (int i = 0; i < len; i++) {
+        (*keyboardMapping)[charsToRandomize.at(i)] = shuffled[i];
+
+        if(invertedMap != NULL)
+            (*invertedMap)[shuffled[i]] = charsToRandomize.at(i);
+            
     }
 
     return keyboardMapping;
+}
+
+int generate_nonce(unsigned char* nonce, int nonceSize) {
+    return RAND_bytes(nonce, nonceSize);
+}
+
+int derive_new_key(unsigned char* baseKey, int keyLen, unsigned char* nonce, int nonceLen, unsigned char* newKey) {
+    EVP_PKEY_CTX *pctx;
+    unsigned char out[32];
+    size_t outlen = sizeof(out);
+    pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+
+    if (EVP_PKEY_derive_init(pctx) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_CTX_set1_hkdf_salt(pctx, nonce, nonceLen) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_CTX_set1_hkdf_key(pctx, baseKey, keyLen) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+    if (EVP_PKEY_derive(pctx, out, &outlen) <= 0)
+    {
+        EVP_PKEY_CTX_free(pctx);
+        return -1;
+    }
+
+    memcpy(newKey, out + 0, 32);
+    return 0;
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">MLKit-Vision</string>
+    <string name="app_name" translatable="false">TrustGlass</string>
     <string name="java_entry_title" translatable="false">Run the ML Kit quickstart written in Java</string>
     <string name="kotlin_entry_title" translatable="false">Run the ML Kit quickstart written in Kotlin</string>
     <string name="ok" translatable="false">OK</string>
@@ -33,6 +33,7 @@
     <string name="pref_category_pose_detection" translatable="false">Pose Detection</string>
     <string name="pref_category_segmentation" translatable="false">Selfie Segmentation</string>
     <string name="pref_category_text_recognition" translatable="false">Text Recognition</string>
+    <string name="pref_registration_setup" translatable="false">Website Registration</string>
 
     <!-- Strings for camera settings. -->
     <string name="pref_category_key_camera" translatable="false">pckc</string>
@@ -152,6 +153,11 @@
     <!-- Strings for segmentation preference. -->
     <string name="pref_title_segmentation_raw_size_mask" translatable="false">Enable raw size mask</string>
     <string name="pref_key_segmentation_raw_size_mask" translatable="false">srsm</string>
+
+    <!-- Strings for Website Registration setup -->
+    <string name="pref_title_register_website" translatable="false">Register a new website</string>
+    <string name="pref_key_register_website" translatable="false">wbnew</string>
+
 
     <string name="pref_group_title_face_mesh" translatable="false">Face Mesh Detection</string>
     <string name="pref_title_face_mesh_use_case" translatable="false">Use Case</string>

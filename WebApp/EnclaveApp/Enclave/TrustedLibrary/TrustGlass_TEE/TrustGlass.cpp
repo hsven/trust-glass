@@ -5,13 +5,12 @@ TrustGlass::TrustGlass() {
     ecGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     generate_ec_key_pair(&keyPair);
 
-    
+
     PKEY_keyPair = EVP_PKEY_new();
 
     if (!EVP_PKEY_assign_EC_KEY(PKEY_keyPair, keyPair))
     {
         EVP_PKEY_free(PKEY_keyPair);
-        // return NULL;
         abort();
     }
 }
@@ -46,64 +45,49 @@ void TrustGlass::set_peer_key(const char* in) {
     BIO_free(bo);
 }
 
-void TrustGlass::set_otp_key(std::string in) {
-    // strcpy(otpSharedKey, in);
-    otpSharedKey = (char*) malloc( sizeof(char) * ( in.length() + 1 ) );
-    strncpy(otpSharedKey, in.c_str(), in.length());
-    // otpSharedKey = in.data();
-    // otpSharedKey = in;
+void TrustGlass::set_long_term_shared_key(std::string in) {
+    longTermSharedKey = (char*) malloc( sizeof(char) * ( in.length() + 1 ) );
+    strncpy(longTermSharedKey, in.c_str(), in.length());
+}
+
+char* TrustGlass::do_session_start() {
+    const char* sessionData = this->create_session();
+
+    // send_response("HANDSHAKE", response, "null", false);
+    ResponseMessage* response = this->create_response("HANDSHAKE", sessionData, "null", false);
+    return response->generate_final();
+}
+
+char* TrustGlass::do_pin_login() {
+    std::map<char, char>* keyboard = this->create_random_keyboard("0123456789");
+    std::string keyboardOut = this->map_to_string(keyboard);
+
+    this->currentState = TrustGlassStates::IN_AUTH;
+    ResponseMessage* response = this->create_response("HANDSHAKE", "Please insert your PIN following the defined number mapping", keyboardOut, true);
+    return response->generate_final();
+}
+
+char* TrustGlass::do_error(std::string errorMsg) {
+    return this->create_response("ERROR", errorMsg, "null", false)->generate_final();
+}
+
+char* TrustGlass::do_message(std::string msgContent, std::string map) {
+    if (this->currentState != TrustGlassStates::CONNECTED) return "";
+    
+    if (map.empty())
+        map = "null";
+
+    return this->create_response("MSG", msgContent, map, true)->generate_final();
 }
 
 std::string TrustGlass::create_otp_value() {
     latestOTP = generate_random_string(6);
-    // latestOTP = "AAAAAA";
 
-    unsigned char encryptedMessage[latestOTP.length() + 256];
-    // base64_decode(otpSharedKey.data())
-    int msgLen = aes_encryption((unsigned char*) latestOTP.data(), latestOTP.length(), base64_decode(otpSharedKey, strlen(otpSharedKey)), encryptedMessage);
-    // encrypt_string(std::string());
-    return base64_encode(encryptedMessage, msgLen);
-
-    // encrypt_string(std::string(encryptedOtp));
+    return latestOTP;
 }
 
-// See https://stackoverflow.com/questions/73392097/totp-implementation-using-c-and-openssl
 bool TrustGlass::verify_otp_entry(const char* in) {
     return std::string(in) == latestOTP;
-
-    // if (strlen(in) != 6) {
-    //     return false;
-    // }
-    // unsigned long long intCounter = floor(time(NULL)/30);
-
-    // unsigned long long endianness = 0xdeadbeef;
-    // if ((*(const uint8_t *)&endianness) == 0xef) {
-    // intCounter = ((intCounter & 0x00000000ffffffff) << 32) | ((intCounter & 0xffffffff00000000) >> 32);
-    // intCounter = ((intCounter & 0x0000ffff0000ffff) << 16) | ((intCounter & 0xffff0000ffff0000) >> 16);
-    // intCounter = ((intCounter & 0x00ff00ff00ff00ff) <<  8) | ((intCounter & 0xff00ff00ff00ff00) >>  8);
-    // };
-
-    // char md[20];
-    // unsigned int mdLen;
-    // HMAC(EVP_sha1(), totpKey.data(), totpKey.size(), (const unsigned char*)&intCounter, sizeof(intCounter), (unsigned char*)&md, &mdLen);
-    // // OPENSSL_cleanse(key, keylen);
-    // int offset = md[19] & 0x0f;
-    // int bin_code = (md[offset] & 0x7f) << 24
-    //     | (md[offset+1] & 0xff) << 16
-    //     | (md[offset+2] & 0xff) << 8
-    //     | (md[offset+3] & 0xff);
-    // bin_code = bin_code % 1000000;
-    // char correctCode[7];
-    // snprintf((char*)&correctCode, 7,"%06d", bin_code);
-    // int compR = strcmp(in, correctCode);
-    // // int compR = compHash(&correctCode, in, 6); // Compares the two char arrays in a way that avoids timing attacks. Returns 0 on success.
-    // // delete[] key;
-    // // delete[] code;
-    // if (compR == 0) {
-    //     return true;
-    // }
-    // // std::this_thread::sleep_for(std::chrono::seconds(5));
-    // return false;
 }
 
 
@@ -127,55 +111,103 @@ std::string TrustGlass::retrieve_public_EC_session_key() {
     }
 
     BN_CTX_free(ctx);
-    // OPENSSL_free(result);
 
     return base64_encode((const unsigned char*) result, strlen(result));
 }
 
-bool TrustGlass::derive_secret_key(const char* encodedPeerKey) {
-    //For some reason the string enters with an extra, unwanted, character
-    //TODO: Check if this is still true
-
-    unsigned char* decodedPeerKey = NULL;
-
-    int len = base64_decode_len(encodedPeerKey, strlen(encodedPeerKey), &decodedPeerKey);
-    char* hexCharArr = OPENSSL_buf2hexstr(decodedPeerKey, len);
-    std::string hexStr = std::string(hexCharArr);
-    hexStr.erase(std::remove(hexStr.begin(), hexStr.end(), ':'), hexStr.end());
-
-    peerPoint = extract_ec_point(hexStr.data());
-    if (!peerPoint) return false;
-    
-    size_t secretLen;
-    secretKey = derive_shared_key(keyPair, peerPoint, &secretLen);
-    if (secretKey == NULL || secretLen <= 0) return false;
-    secretKey[secretLen] = '\0';
-
-    return true;
-}
-
 std::string TrustGlass::encrypt_string(std::string contentString) {
     //TODO: Message size should not be hardcoded
+    unsigned char total[32 + contentString.length() + 256];
     unsigned char encryptedMessage[contentString.length() + 256];
-    int msgLen = aes_encryption((unsigned char*) contentString.data(), contentString.length(), secretKey, encryptedMessage);
-    return std::string(base64_encode(encryptedMessage, msgLen));
+    unsigned char iv[16];
+    unsigned char mac[16];
+    int msgLen = aes_encryption((unsigned char*) contentString.data(), contentString.length(), sessionKey, encryptedMessage, iv, mac);
+
+    //Prepend IV
+    memcpy(total, iv, 16);
+    //Encrypted Message
+    memcpy(total+16, encryptedMessage, msgLen);
+    //Append MAC
+    memcpy(total+16+msgLen, mac, 16);
+    return std::string(base64_encode(total, msgLen+32));
 }
 
 std::string TrustGlass::sign_string(std::string contentString) {
     return sign_message(contentString.c_str(), longTermKeyPair);
 }
 
-std::map<char, char> TrustGlass::create_random_keyboard() {
-    latestKeyboard = generate_randomized_keyboard();
+std::map<char, char>* TrustGlass::create_random_keyboard(std::string keyboardToRandomize) {
+    //Reset previous maps 
+    free(latestInvertedKeyboard);
+    free(latestKeyboard);
+
+    latestInvertedKeyboard = new std::map<char, char>(); 
+    latestKeyboard = generate_randomized_keyboard(keyboardToRandomize, latestInvertedKeyboard);
     return latestKeyboard;
 }
 
-ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, bool signWithSessionKeys) {
+std::string TrustGlass::map_to_string(std::map<char, char>* map) {
+    std::string out = "{";
+    for (auto &&i : *map)
+    {
+        out += "\""; 
+        out += i.first;
+        out += "\":\"";
+        out += i.second;
+        out += "\",";
+    }
+    out.replace(out.length() - 1, 1, "}");
+
+    return out;
+}
+
+std::string TrustGlass::decipher_randomized_string(std::string input) {
+    std::string decipheredString = "";
+    for (char character : input)
+    {
+        decipheredString += (*latestInvertedKeyboard)[character];
+    }
+    
+    return decipheredString;
+}
+
+const char* TrustGlass::create_session() {
+    //Step 1. Retrieve User-related Keys
+    //TODO: Remove the hard-coding of this step
+
+    //Step 2. Generate Nonce
+    unsigned char* nonce = (unsigned char*) malloc(sizeof(unsigned char) * 16);
+    int ret = generate_nonce(nonce, 16);
+    if (ret != 1) {
+        abort();
+    }
+    
+    //Step 3. Obtain session key via KDF
+    sessionKey = (unsigned char*) malloc(sizeof(unsigned char) * 32);
+    unsigned char decodedLTK[256];
+    unsigned char* test = NULL;
+
+    base64_decode_len(longTermSharedKey, strlen(longTermSharedKey), &test);
+    memcpy(decodedLTK, test, 256);
+    ret = derive_new_key(decodedLTK, 256, nonce, 16, sessionKey);
+    if (ret != 0) {
+        abort();
+    }
+
+    //Return nonce and ID
+    //TODO: Include ID
+    char* nonceB64 = base64_encode(nonce, 16);
+
+    return nonceB64;
+}
+
+ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string mainMsg, std::string map, bool isEncrypted) {
     //Generate Response Message
     ResponseMessage* response = new ResponseMessage();
     MessageContent* content = new MessageContent();
     content->header = headerMsg;
     content->message = mainMsg;
+    content->mapStr = map;
     content->freshnessToken = messageCounter;
     std::string contentString = content->generate_final();
 
@@ -183,25 +215,10 @@ ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string 
     response->content = base64_encode((unsigned char*) contentString.data(), contentString.length());
 
     //If message requires security properties
-    if (signWithSessionKeys) {
+    if (isEncrypted) {
         response->content = encrypt_string(contentString).data();
-
-        EVP_PKEY* pKey = EVP_PKEY_new();
-
-        // if (!EVP_PKEY_assign_EC_KEY(pKey, keyPair))
-        // {
-        //     EVP_PKEY_free(pKey);
-        //     return NULL;
-        // }
-
-        response->digitalSignature = sign_message(contentString.c_str(), PKEY_keyPair);
-        EVP_PKEY_free(pKey);
     }
-    else {
-        response->digitalSignature = sign_message(contentString.c_str(), longTermKeyPair);  
-    }
-
-    response->signedWithSession = signWithSessionKeys;
+    response->encrypted = isEncrypted;
 
     // //Prints for DEBUG purposes
     // printf("Message: %s\n", response->content.c_str());

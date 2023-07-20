@@ -39,10 +39,10 @@
 
   <PreferenceCategory android:title="@string/pref_category_info">
     <SwitchPreference
-        android:defaultValue="false"
+        android:defaultValue="true"
         android:key="@string/pref_key_info_hide"
         android:persistent="true"
-        android:title="@string/pref_title_info_hide"/>
+        android:title="@string/pref_title_info_hide" />
   </PreferenceCategory>
 
 </PreferenceScreen>

@@ -24,7 +24,6 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.Spinner;
@@ -38,13 +37,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.gms.common.annotation.KeepName;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
-import com.google.gson.stream.JsonReader;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,7 +50,6 @@ import pt.ulisboa.tecnico.trustglass.java.barcodescanner.BarcodeScannerProcessor
 import pt.ulisboa.tecnico.trustglass.java.encryption.EncryptionManager;
 import pt.ulisboa.tecnico.trustglass.preference.LogsActivity;
 import pt.ulisboa.tecnico.trustglass.preference.SettingsActivity;
-import pt.ulisboa.tecnico.trustglass.BuildConfig;
 
 class WebsiteEntry {
   public String name;
@@ -83,7 +76,6 @@ public final class LivePreviewActivity extends AppCompatActivity
 
   public List<WebsiteEntry> registeredWebsites = null;
   private WebsiteEntry selectedWebsite = null;
-//  private String selectedWebsite = ADD_NEW_WEBSITE;
 
   private static final String TAG = "LivePreviewActivity";
 
@@ -143,8 +135,7 @@ public final class LivePreviewActivity extends AppCompatActivity
             v -> {
               Intent intent = new Intent(getApplicationContext(), LogsActivity.class);
                 intent.putExtra("messages", encryptionManager.displayedMessages);
-//              intent.putExtra(
-//                      LogsActivity.EXTRA_LAUNCH_SOURCE, LogsActivity.LaunchSource.LIVE_PREVIEW);
+
               startActivity(intent);
             });
 
@@ -163,7 +154,6 @@ public final class LivePreviewActivity extends AppCompatActivity
       i++;
     }
     options.add(ADD_NEW_WEBSITE);
-//    options.add(BARCODE_SCANNING);
 
     // Creating adapter for spinner
     ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
@@ -176,26 +166,27 @@ public final class LivePreviewActivity extends AppCompatActivity
     if(currentSelectedPosition == -1) spinner.setSelection(options.size() - 1);
     else spinner.setSelection((currentSelectedPosition));
 
-    //Next: Connect to server + adapt key storing to a Java KeyStore
   }
 
   private List<WebsiteEntry> loadStoredWebsiteEntries() {
-    try {
-      String websiteFileName = "registeredWebsites.json";
-      FileInputStream fis = null;
-      fis = this.openFileInput(websiteFileName);
-      Gson gson = new Gson();
-      JsonReader reader = new JsonReader(new InputStreamReader(fis));
+      // Demo feature
+      String websiteJSON =
+              "[\n" +
+              "    {\n" +
+              "        \"name\":\"Demo App\",\n" +
+              "        \"domain\":\"127.0.0.1:8000\"\n" +
+              "    }\n" +
+              "]";
 
-      List<WebsiteEntry> entries = gson.fromJson(reader, new TypeToken<List<WebsiteEntry>>(){}.getType());
+      Gson gson = new Gson();
+
+      List<WebsiteEntry> entries = gson.fromJson(websiteJSON, new TypeToken<List<WebsiteEntry>>(){}.getType());
 
       if (!entries.isEmpty()) {
         selectedWebsite = entries.get(0);
       }
       return entries;
-    } catch (FileNotFoundException e) {
-      throw new RuntimeException(e);
-    }
+
 
   }
 
@@ -218,16 +209,10 @@ public final class LivePreviewActivity extends AppCompatActivity
       startActivityForResult(websiteRegister, 1);
 
       return;
-    } else if (!BuildConfig.hasOTP){
-      encryptionManager.clearSession();
-      displayQRText(encryptionManager.generateECSessionKeyPair());
     }
-//    registeredWebsites.stream().filter(entry -> entry.name == parent.getItemAtPosition(pos).toString()).findFirst().get();
-//    selectedWebsite = parent.getItemAtPosition(pos).toString();
+
     Log.d(TAG, "Selected Website: " + selectedWebsite.name);
-//    preview.stop();
-//    createCameraSource(selectedModel);
-//    startCameraSource();
+
   }
 
   @Override
@@ -240,8 +225,6 @@ public final class LivePreviewActivity extends AppCompatActivity
           registeredWebsites.add(newEntry);
           selectedWebsite = newEntry;
           updateSpinner();
-//          String newText = data.getStringExtra(PUBLIC_STATIC_STRING_IDENTIFIER);
-          // TODO Update your TextView.
         }
         break;
       }
@@ -277,13 +260,7 @@ public final class LivePreviewActivity extends AppCompatActivity
       Log.i(TAG, "Using Barcode Detector Processor");
       barcodeScannerProcessor = new BarcodeScannerProcessor(this, encryptionManager, scanToggle);
       cameraSource.setMachineLearningFrameProcessor(barcodeScannerProcessor);
-//      break;
-//      switch (model) {
-//        case BARCODE_SCANNING:
-//
-//        default:
-//          Log.e(TAG, "Unknown model: " + model);
-//      }
+
     } catch (RuntimeException e) {
       Log.e(TAG, "Can not create image processor: " + model, e);
       Toast.makeText(

@@ -17,12 +17,9 @@
 package pt.ulisboa.tecnico.trustglass.preference;
 
 import android.os.Bundle;
-import android.preference.PreferenceFragment;
-import android.text.method.ScrollingMovementMethod;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
@@ -33,20 +30,6 @@ import pt.ulisboa.tecnico.trustglass.R;
 public class LogsActivity extends AppCompatActivity {
 
   private LinearLayout linearLayout = null;
-
-//  /** Specifies where this activity is launched from. */
-//  @SuppressWarnings("NewApi") // CameraX is only available on API 21+
-//  public enum LaunchSource {
-//    LIVE_PREVIEW(R.string.pref_screen_title_live_preview, LivePreviewPreferenceFragment.class);
-//
-//    private final int titleResId;
-//    private final Class<? extends PreferenceFragment> prefFragmentClass;
-//
-//    LaunchSource(int titleResId, Class<? extends PreferenceFragment> prefFragmentClass) {
-//      this.titleResId = titleResId;
-//      this.prefFragmentClass = prefFragmentClass;
-//    }
-//  }
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {

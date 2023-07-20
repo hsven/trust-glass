@@ -44,22 +44,6 @@ android {
     aaptOptions {
         noCompress "tflite"
     }
-
-    flavorDimensions "version"
-    productFlavors {
-        password_demo {
-            dimension "version"
-            applicationIdSuffix ".pass_demo"
-            versionNameSuffix "-pass_demo"
-            buildConfigField "boolean", "hasOTP", "false"
-        }
-        otp_demo {
-            dimension "version"
-            applicationIdSuffix ".otp_demo"
-            versionNameSuffix "-otp_demo"
-            buildConfigField "boolean", "hasOTP", "true"
-        }
-    }
 }
 
 repositories {

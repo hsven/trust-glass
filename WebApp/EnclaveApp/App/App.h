@@ -42,8 +42,6 @@
 #include "sgx_error.h"       /* sgx_status_t */
 #include "sgx_eid.h"     /* sgx_enclave_id_t */
 
-
-
 #ifndef TRUE
 # define TRUE 1
 #endif
@@ -61,25 +59,33 @@ extern sgx_enclave_id_t global_eid;    /* global enclave id */
 extern "C" {
 #endif
 
-void edger8r_array_attributes(void);
-void edger8r_type_attributes(void);
-void edger8r_pointer_attributes(void);
-void edger8r_function_attributes(void);
+/**
+ * Sets up the TrustGlass instance in the enclave
+*/
+void ecall_init(void);
 
-void ecall_libc_functions(void);
-void ecall_libcxx_functions(void);
-void ecall_thread_functions(void);
-
-// void ecall_hello(void);
-// void ecall_push_number(int num);
-// void ecall_sum(void);
-
+/**
+ * Sends the string 'in' to the enclave
+*/
 void ecall_send_input(const char* in);
 
-std::string rsaEncrypt(std::string message, std::string key);
+/**
+ * Sends the long term shared secret key from storage to the enclave.
+ * 
+ * In this demo, we assume that a setup phase already occured.
+ * As such, the TEE and the Glasses only require this key.
+*/
+void ecall_send_key(void);
 
-// void printQr(const qrcodegen::QrCode &qr);
-// void generate_QR_code(std::string message);
+/**
+ * Starts a new session within TrustGlass
+*/
+void ecall_session(void);
+
+/**
+ * Requests a PIN authentication step from TrustGlass
+*/
+void ecall_pin_auth(void);
 
 #if defined(__cplusplus)
 }

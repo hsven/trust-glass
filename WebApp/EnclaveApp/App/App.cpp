@@ -31,7 +31,6 @@
 
 
 #include <stdio.h>
-// #include <string>
 #include <assert.h>
 #include <iostream>
 # include <unistd.h>
@@ -45,8 +44,6 @@
 #include "AppECalls.cpp"
 
 #include "UntrustedLibrary/Server.h"
-/* Global EID shared by multiple threads */
-// sgx_enclave_id_t global_eid = 0;
 
 typedef struct _sgx_errlist_t {
     sgx_status_t err;
@@ -181,7 +178,6 @@ static std::string receive_message(SSL *sslConn) {
     size_t rxcap = sizeof(rxbuf);
     int rxlen;
 
-    // printf("Received: \n");
     do {
         rxlen = SSL_read(sslConn, rxbuf, rxcap);
 
@@ -206,9 +202,6 @@ int SGX_CDECL main(int argc, char *argv[])
     (void)(argc);
     (void)(argv);
 
-    // exit(0);
-
-
     /* Initialize the enclave */
     if(initialize_enclave() < 0){
         printf("Enter a character before exit ...\n");
@@ -216,7 +209,6 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1; 
     }
  
-    // ecall_hello();
     ecall_init();
 
     ecall_send_key();
@@ -230,7 +222,7 @@ int SGX_CDECL main(int argc, char *argv[])
     int rxlen;
     struct sockaddr_in addr;
     unsigned int addr_len = sizeof(addr);
-    server_loop(&ssl_ctx, &server_skt);
+    create_server(&ssl_ctx, &server_skt);
 
     while (is_server_running) {
         /* Wait for TCP connection from client */
@@ -256,26 +248,24 @@ int SGX_CDECL main(int argc, char *argv[])
 
             printf("Client SSL connection accepted\n\n");
 
-            ecall_handshake();
+            ecall_session();
             /* Get message from client; will fail if client closes connection */
             std::string in = receive_message(ssl);
 
             ecall_pin_auth();
             /* Echo loop */
             while (true) {
-                // /* Get message from client; will fail if client closes connection */
+                /* Get message from client; will fail if client closes connection */
                 std::string in = receive_message(ssl);
                 /* Look for kill switch */
                 std::cout << "Received via SSL: " << in << std::endl;
 
                 if (in.compare("kill\n") == 0) {
-                    /* Terminate...with extreme prejudice */
+                    /* Terminate */
                     printf("Server received 'kill' command\n");
                     is_server_running = false;
                     break;
                 }
-                /* Show received message */
-                // printf("Received: %s", rxbuf);
 
                 ecall_send_input(in);
             }
@@ -287,7 +277,6 @@ int SGX_CDECL main(int argc, char *argv[])
             close(client_skt);
         }
     }
-
 
     sgx_destroy_enclave(global_eid);
     

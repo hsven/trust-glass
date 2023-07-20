@@ -53,7 +53,6 @@ void TrustGlass::set_long_term_shared_key(std::string in) {
 char* TrustGlass::do_session_start() {
     const char* sessionData = this->create_session();
 
-    // send_response("HANDSHAKE", response, "null", false);
     ResponseMessage* response = this->create_response("HANDSHAKE", sessionData, "null", false);
     return response->generate_final();
 }
@@ -67,8 +66,8 @@ char* TrustGlass::do_pin_login() {
     return response->generate_final();
 }
 
-char* TrustGlass::do_error(std::string errorMsg) {
-    return this->create_response("ERROR", errorMsg, "null", false)->generate_final();
+char* TrustGlass::do_error(std::string errorMsg, bool isEnc) {
+    return this->create_response("ERROR", errorMsg, "null", isEnc)->generate_final();
 }
 
 char* TrustGlass::do_message(std::string msgContent, std::string map) {
@@ -173,7 +172,7 @@ std::string TrustGlass::decipher_randomized_string(std::string input) {
 
 const char* TrustGlass::create_session() {
     //Step 1. Retrieve User-related Keys
-    //TODO: Remove the hard-coding of this step
+    //For demonstration purposes, this is omitted (only one user is considered)
 
     //Step 2. Generate Nonce
     unsigned char* nonce = (unsigned char*) malloc(sizeof(unsigned char) * 16);
@@ -195,7 +194,7 @@ const char* TrustGlass::create_session() {
     }
 
     //Return nonce and ID
-    //TODO: Include ID
+    //For demonstration purposes, the ID is omitted
     char* nonceB64 = base64_encode(nonce, 16);
 
     return nonceB64;
@@ -220,7 +219,7 @@ ResponseMessage* TrustGlass::create_response(std::string headerMsg, std::string 
     }
     response->encrypted = isEncrypted;
 
-    // //Prints for DEBUG purposes
+    //Prints for DEBUG purposes
     // printf("Message: %s\n", response->content.c_str());
     // printf("Signature: %s\n", response->digitalSignature.c_str());
     // printf("Freshess: %d\n", messageCounter);

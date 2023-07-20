@@ -23,4 +23,4 @@ int create_socket();
 SSL_CTX* create_context();
 void configure_server_context(SSL_CTX *ctx);
 void usage();
-int server_loop(SSL_CTX **ssl_ctx, int* server_skt);
+int create_server(SSL_CTX **ssl_ctx, int* server_skt);

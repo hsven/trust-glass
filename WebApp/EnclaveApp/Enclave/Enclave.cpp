@@ -66,28 +66,9 @@ void generate_welcome_message() {
     send_response_compact(trustGlass->do_message(resStr, ""));
 }
 
-
-void ecall_hello_world(void)
-{
-    const char* hello = "HelloWorld!\n";
-    printf("%s", hello);
-}
-
 void ecall_init_TrustGlass() {
     trustGlass = new TrustGlass();
     resManager.set_TrustGlass(trustGlass);
-}
-
-
-void ecall_receive_key_pair(const char* in) {
-    printf("Key Pair:\n%s\n", in);
-    trustGlass->set_key_pair(in);
-}
-
-
-void ecall_receive_peer_key(const char* in) {
-    printf("Peer Key:\n%s\n", in);
-    trustGlass->set_peer_key(in);
 }
 
 void ecall_receive_long_term_shared_key(const char* in) {
@@ -103,14 +84,14 @@ void verify_auth(const char* input) {
     const char* result = trustGlass->decipher_randomized_string(input).c_str();
     printf("Decipher Result: %s\n", result);
     
-    // TODO: Don't hardcode passwords
+    // Hardcoded password for demonstration purposes
     if (!strcmp(result, "1234"))
         generate_welcome_message();
     else 
-        send_response_compact(trustGlass->do_error("AUTH ERROR - Wrong Password"));
+        send_response_compact(trustGlass->do_error("AUTH ERROR - Wrong Password", true));
 }
 
-void ecall_setup() {
+void ecall_start_session() {
     send_response_compact(trustGlass->do_session_start());
 }
 

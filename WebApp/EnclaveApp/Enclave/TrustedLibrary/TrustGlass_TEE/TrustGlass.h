@@ -99,14 +99,15 @@ class TrustGlass {
     /**
      * Standard function for error messages. 
      * It prepares a message to be sent to the glasses, with the specified error message.
-     * Note: The message is not encrypted, since this can be used before a session is established
+     * Note: The message may not be encrypted, since this can be used before a session is established
      * 
      * Param: 
      * - 'errorMsg' = Message to be encrypted
+     * - 'isEnc' = Whether the message should be encrypted
      * 
      * Return: Error message for the glasses to read
     */
-    char* do_error(std::string errorMsg);
+    char* do_error(std::string errorMsg, bool isEnc);
 
     /**
      * Generates an alphanumerical (a-zA-Z0-9) string of 6 character for challenge-response purposes

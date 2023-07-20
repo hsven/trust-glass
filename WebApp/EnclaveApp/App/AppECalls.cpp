@@ -5,14 +5,6 @@
 
 sgx_enclave_id_t global_eid = 0;
 
-void ecall_hello() {
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
-    ret = ecall_hello_world(global_eid);
-    if (ret != SGX_SUCCESS)
-        abort();
-}
-
 void ecall_init() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
@@ -31,11 +23,7 @@ void ecall_send_input(std::string in) {
 
 void ecall_send_key() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    //TODO: Remove hardcoded key
 
-    // LTK Section
-    // In this demo, we assume that a setup phase already occured.
-    // As such, the TEE and the Glasses only require the established long term shared key
     std::ifstream sharedLTKey("sharedLTKeyB64.txt");
     if (sharedLTKey.good()) {
         std::string sharedLTKeyContent( (std::istreambuf_iterator<char>(sharedLTKey) ),
@@ -46,10 +34,10 @@ void ecall_send_key() {
     }
 }
 
-void ecall_handshake() {
+void ecall_session() {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-    ret = ecall_setup(global_eid);
+    ret = ecall_start_session(global_eid);
     if (ret != SGX_SUCCESS)
         abort();
 }

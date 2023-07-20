@@ -1,73 +1,35 @@
 package pt.ulisboa.tecnico.trustglass.java.encryption;
 
 import android.content.Context;
-import android.os.Environment;
 import android.util.Base64;
 import android.util.Log;
 
 import com.google.gson.Gson;
 
-import org.bouncycastle.asn1.ASN1InputStream;
-import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
 import org.bouncycastle.crypto.params.HKDFParameters;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.reflect.Array;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.AlgorithmParameters;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
-import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.security.SignatureException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
-import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.InvalidParameterSpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPublicKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.Map;
 
-import javax.crypto.AEADBadTagException;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
-import pt.ulisboa.tecnico.trustglass.BuildConfig;
-
 
 class MessageContent {
     public String hdr;
@@ -135,6 +97,30 @@ public class EncryptionManager {
             displayedMessages.add(result);
             return result;
         }
+        //Likely an error
+        else if (!msg.enc) {
+            String decodedMessageContent = new String(Base64.decode(msg.msg, Base64.DEFAULT), StandardCharsets.UTF_8);
+
+            MessageContent content = extractMessageContent(msg);
+            Log.d("Extracted Content Msg", content.msg);
+
+            //Check freshness
+            if (content.fresh != messageCounter) {
+                return "ERROR: Freshness check failed!";
+            }
+            messageCounter = content.fresh + 1;
+
+            if (content.hdr.equals("ERROR")) {
+                return content.msg;
+            }
+            if (!content.hdr.equals("HANDSHAKE")) {
+                return "ERROR: Incorrect expected header!";
+            }
+
+            String result = handshakeSetup(content.msg);
+            displayedMessages.add(result);
+            return result;
+        }
 
         //Decrypt
         String decryptedMsg = null;
@@ -171,18 +157,18 @@ public class EncryptionManager {
         return finalStr;
     }
 
-    public KeyPair generateECKeyPair() {
-        try {
-            KeyPairGenerator kpGen = KeyPairGenerator.getInstance("EC");
-
-            kpGen.initialize(new ECGenParameterSpec("prime256v1"));
-            return kpGen.generateKeyPair();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidAlgorithmParameterException e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    public KeyPair generateECKeyPair() {
+//        try {
+//            KeyPairGenerator kpGen = KeyPairGenerator.getInstance("EC");
+//
+//            kpGen.initialize(new ECGenParameterSpec("prime256v1"));
+//            return kpGen.generateKeyPair();
+//        } catch (NoSuchAlgorithmException e) {
+//            throw new RuntimeException(e);
+//        } catch (InvalidAlgorithmParameterException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     private MessageContent extractMessageContent(Message msg) {
         byte[] decodedMessageContent = Base64.decode(msg.msg, Base64.DEFAULT);
@@ -196,104 +182,19 @@ public class EncryptionManager {
 
     private void importKeys() {
         try {
-            //Import system key
-            byte[] encoded = importSingleKey("EC_GlassPrivKey.pem", "priv");
-            KeyFactory keyFactory = KeyFactory.getInstance("EC");
-            PKCS8EncodedKeySpec privKeySpec = new PKCS8EncodedKeySpec(encoded);
-            longTermKeyPair = (ECPrivateKey) keyFactory.generatePrivate(privKeySpec);
+            // For demonstration purposes, the long-term shared key is hardcoded
+            // In a real implementation, the key would be established in a prior step via ECDH, and stored locally in an encrypted keystore
+            String b64LTK = "W/EC20gaJJTuMGzqwIezjUeSdJhHh0VpiTWrZiHOUO3h4faUyy9ALcImwphBIFoawXDVfj2jti28" +
+                    "yjYAQJJcHMZwsRkx37iwO6sWL+6xPcF+bUuG3G174Itc2wV+7poGNH2D9q2umCLJC/l+6UdyTvjp" +
+                    "CBNd6EEkMk0SeJzp0MGNVn7zYcs7C6H7FhqwL9lP94Bl6nw7r8kHx9KPVQh+krlGzHmoc5Z+wIx4" +
+                    "qkQ61smpc4jsOcfWSzcIWXEbTM8LK8LZYF4g+jbKvZ/bbDhCX6U381eZhZ0y8yanC5B98Lw9QtRM" +
+                    "tV9Ge05XcHSA8jpMtngdo/+BIlRADwNuAWPGLg==";
 
-            //Import TEE public key
-            encoded = importSingleKey("EC_TEEPubKey.pem", "pub");
-            keyFactory = KeyFactory.getInstance("EC");
-            X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encoded);
-            longTermPeerKey = (ECPublicKey) keyFactory.generatePublic(publicKeySpec);
+            longTermSharedKey = Base64.decode(b64LTK, Base64.DEFAULT);
 
-            longTermSharedKey = importSingleKey("sharedLTKeyB64.txt", "");
-//            keyFactory = KeyFactory.getInstance("EC");
-//            X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encoded);
-//            longTermPeerKey = (ECPublicKey) keyFactory.generatePublic(publicKeySpec);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidKeySpecException e) {
+        } catch (IllegalArgumentException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private byte[] importSingleKey(String path, String keyType) {
-        try {
-            FileInputStream fis = null;
-            fis = ctx.openFileInput(path);
-
-            InputStreamReader isr = new InputStreamReader(fis);
-            BufferedReader bufferedReader = new BufferedReader(isr);
-            StringBuilder sb = new StringBuilder();
-            String fileContent;
-            while ((fileContent = bufferedReader.readLine()) != null) {
-                sb.append(fileContent);
-            }
-            String keyPEM = sb.toString();
-            fis.close();
-
-            if (keyType.equals("priv")) {
-                 keyPEM = keyPEM
-                        .replace("-----BEGIN PRIVATE KEY-----", "")
-                        .replaceAll(System.lineSeparator(), "")
-                        .replace("-----END PRIVATE KEY-----", "");
-            } else if(keyType.equals("pub")) {
-                keyPEM = keyPEM
-                        .replace("-----BEGIN PUBLIC KEY-----", "")
-                        .replaceAll(System.lineSeparator(), "")
-                        .replace("-----END PUBLIC KEY-----", "");
-            }
-//            else {
-//               return keyPEM.getBytes();
-//            }
-
-            if (keyPEM.isEmpty())
-                return null;
-
-            return Base64.decode(keyPEM, Base64.DEFAULT);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void clearSession() {
-        sessionKeyPair = null;
-        peerKey = null;
-        symKey = null;
-        messageCounter = 0;
-    }
-
-    public String generateECSessionKeyPair() {
-        sessionKeyPair = generateECKeyPair();
-        if (sessionKeyPair == null) {
-            return "SETUP ERROR\nFailed to generate the session keys";
-        }
-
-        ECPublicKey ecPubKey = (ECPublicKey) sessionKeyPair.getPublic();
-        ECPoint publicPoint = ecPubKey.getW();
-
-        String compressedKeyPrefix = "";
-        if(publicPoint.getAffineY().mod(new BigInteger("2")).equals(BigInteger.ZERO))
-            compressedKeyPrefix = "02";
-        else
-            compressedKeyPrefix = "03";
-
-        Log.d("pointX:", publicPoint.getAffineX().toString(16));
-        Log.d("pointY:", publicPoint.getAffineY().toString(16));
-
-        String outputHex = compressedKeyPrefix + publicPoint.getAffineX().toString(16);
-        byte[] outputBytes = new BigInteger(outputHex, 16).toByteArray();
-        String out = Base64.encodeToString(outputBytes, Base64.DEFAULT);
-
-        Log.d("SecretKeyBase64:", key);
-        Log.d("PubKeyInHex", outputHex);
-        Log.d("PubKeyToSend", out);
-
-        return "Connection Start\nWrite the following key in the keyboard:\n\n" + out;
     }
 
     private String handshakeSetup(String receivedPubKey) {
@@ -305,75 +206,14 @@ public class EncryptionManager {
         if (symKey == null) {
             return "Handshake ERROR\nFailed to generate Shared Key";
         }
+
+        // Prints for debug purposes
 //        Log.d("SecretKeyBase64:", key);
 //        Log.d("PubKeyInHex", outputHex);
 //        Log.d("PubKeyToSend", out);
+
         Log.d("Obtained Key", Base64.encodeToString(symKey.getEncoded(), Base64.DEFAULT));
         return "Handshake OK\nPress \"Login\" to continue.";
-
-//        if(BuildConfig.hasOTP)
-//            return "Handshake OK\nWrite the following key in the keyboard:\n\n" + out;
-//        else
-    }
-
-    //Unnecesasry. TODO: Remove later
-   private boolean checkAuthenticity(String decryptedMsg, Message msg, ECPublicKey key) {
-       try {
-           Signature sig = Signature.getInstance("SHA256withECDSA");
-           sig.initVerify(key);
-           sig.initVerify(key);
-           sig.update(decryptedMsg.getBytes());
-           return sig.verify(Base64.decode(msg.sig, Base64.DEFAULT));
-       } catch (NoSuchAlgorithmException e) {
-           throw new RuntimeException(e);
-       } catch (InvalidKeyException e) {
-           throw new RuntimeException(e);
-       } catch (SignatureException e) {
-           throw new RuntimeException(e);
-       }
-   }
-
-    private ECPublicKey ecPointToPublicKey(String hexECPoint) {
-        if (!hexECPoint.startsWith("04")) {
-            throw new RuntimeException("Wrong hex EC Point format");
-        }
-        String xCoord = hexECPoint.substring(2, 66);
-        String yCoord = hexECPoint.substring(66);
-        if (xCoord.length() != yCoord.length()) {
-            throw new RuntimeException("Wrong hex EC Point coordinate split");
-        }
-
-        ECPoint pubPoint = new ECPoint(new BigInteger(xCoord, 16),new BigInteger(yCoord, 16));
-        AlgorithmParameters parameters = null;
-        try {
-            parameters = AlgorithmParameters.getInstance("EC");
-
-            parameters.init(new ECGenParameterSpec("prime256v1"));
-            ECParameterSpec ecParameters = parameters.getParameterSpec(ECParameterSpec.class);
-            ECPublicKeySpec pubSpec = new ECPublicKeySpec(pubPoint, ecParameters);
-            KeyFactory kf = KeyFactory.getInstance("EC");
-            return (ECPublicKey)kf.generatePublic(pubSpec);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidParameterSpecException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidKeySpecException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private SecretKey generateSharedSecret(PrivateKey privateKey,
-                                           PublicKey publicKey) {
-        try {
-            KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
-            keyAgreement.init(privateKey);
-            keyAgreement.doPhase(publicKey, true);
-
-            SecretKey key = keyAgreement.generateSecret("AES");
-            return key;
-        } catch (InvalidKeyException | NoSuchAlgorithmException e) {
-            return null;
-        }
     }
 
     private SecretKey generateSharedSecret(byte[] nonce) {
@@ -386,11 +226,7 @@ public class EncryptionManager {
             hkdf.init(new HKDFParameters(longTermSharedKey, nonce, null));
 
             hkdf.generateBytes(secretKey, 0, 32);
-//            KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
-//            keyAgreement.init(privateKey);
-//            keyAgreement.doPhase(publicKey, true);
 
-//            SecretKey key = keyAgreement.generateSecret("AES");
             SecretKey key = new SecretKeySpec(secretKey, 0, secretKey.length, "AES");
             return key;
         } catch (Exception e) {
@@ -411,22 +247,6 @@ public class EncryptionManager {
             return new String(plainText);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException e) {
             //Likely programmer error
-            throw new RuntimeException(e);
-        }
-    }
-
-    private String AESEncrypt(String plainText, SecretKey key) {
-        byte[] iv = "0123456789012345".getBytes(StandardCharsets.UTF_8);
-
-        try {
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            AlgorithmParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
-
-            cipher.init(Cipher.ENCRYPT_MODE, key, gcmParameterSpec);
-//            byte[] cipherBytes = Base64.decode(plainText, Base64.DEFAULT);
-            byte[] cipherText = cipher.doFinal(plainText.getBytes("UTF-8"));
-            return Base64.encodeToString(cipherText, Base64.DEFAULT);
-        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

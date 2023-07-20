@@ -18,15 +18,11 @@ package pt.ulisboa.tecnico.trustglass.preference;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.Build.VERSION_CODES;
 import android.preference.PreferenceManager;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.StringRes;
-import androidx.camera.core.CameraSelector;
 import com.google.android.gms.common.images.Size;
 import com.google.common.base.Preconditions;
-import com.google.mlkit.common.model.LocalModel;
 import pt.ulisboa.tecnico.trustglass.CameraSource;
 
 import pt.ulisboa.tecnico.trustglass.R;
@@ -73,7 +69,7 @@ public class PreferenceUtils {
   public static boolean shouldHideDetectionInfo(Context context) {
     SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
     String prefKey = context.getString(R.string.pref_key_info_hide);
-    return sharedPreferences.getBoolean(prefKey, false);
+    return sharedPreferences.getBoolean(prefKey, true);
   }
 
 

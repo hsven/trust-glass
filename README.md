@@ -28,7 +28,7 @@ source /opt/intel/sgxsdk/environment
 
 TrustGlass is offered as a trusted library that can be used in an Intel SGX enclave application, accompanied by an Android application responsible for decrypting TrustGlass messages, used in the smart glasses.
 
-To use the trusted library, visit its [README]() for details on how to implement it in an existing enclave application.
+To use the trusted library, visit its [README](TrustGlass_TEE/README.md) for details on how to implement it in an existing enclave application.
 
 The Android application, while meant to be used with smart glasses, can be used in an Android smartphone.
 [Android Studio](https://developer.android.com/studio) is recommended to build and setup the application.
@@ -44,7 +44,7 @@ This application consists of a Django python frontend and the enclave as the bac
 
 1. Open a terminal and build the enclave
 ```sh
-cd WebApp/EnclaveApp/
+cd Demo/EnclaveApp/
 make SGX_MODE=SIM
 ```
 
@@ -55,7 +55,7 @@ make SGX_MODE=SIM
 
 3. In a new terminal, run the frontend
 ```sh
-cd WebApp/
+cd Demo/
 python manage.py runserver
 ```
 

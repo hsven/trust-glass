@@ -33,8 +33,6 @@
 
 enclave {
     
-    // include "user_types.h" /* buffer_t */
-
     /* Import ECALL/OCALL from sub-directory EDLs.
      *  [from]: specifies the location of EDL file. 
      *  [import]: specifies the functions to import, 

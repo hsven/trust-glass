@@ -217,9 +217,6 @@ int SGX_CDECL main(int argc, char *argv[])
     int server_skt = -1;
     int client_skt = -1;
     bool is_server_running = true;
-    char rxbuf[128];
-    size_t rxcap = sizeof(rxbuf);
-    int rxlen;
     struct sockaddr_in addr;
     unsigned int addr_len = sizeof(addr);
     create_server(&ssl_ctx, &server_skt);
@@ -238,7 +235,6 @@ int SGX_CDECL main(int argc, char *argv[])
         /* Create server SSL structure using newly accepted client socket */
         ssl = SSL_new(ssl_ctx);
         SSL_set_fd(ssl, client_skt);
-        printf("YOO\n");
 
         /* Wait for SSL connection from the client */
         if (SSL_accept(ssl) <= 0) {
@@ -256,7 +252,7 @@ int SGX_CDECL main(int argc, char *argv[])
             /* Echo loop */
             while (true) {
                 /* Get message from client; will fail if client closes connection */
-                std::string in = receive_message(ssl);
+                in = receive_message(ssl);
                 /* Look for kill switch */
                 std::cout << "Received via SSL: " << in << std::endl;
 

@@ -7,7 +7,6 @@ enum MenuOptions {
     CHECK_BALANCE,
     TAKE_MONEY,
     LOGOUT,
-    DEBUG_ECHO,
 };
 
 enum SubMenuOptions {
@@ -44,22 +43,16 @@ class ResponseManager {
         do {
             opt3 = generate_random_string(4);
         } while (opt1.compare(opt3) == 0 && opt2.compare(opt3) == 0);
-        std::string opt4 = "abcd";
-        do {
-            opt4 = generate_random_string(4);
-        } while (opt1.compare(opt3) == 0 && opt2.compare(opt3) == 0  && opt3.compare(opt4) == 0);
 
         this->userMenu = {
             {opt1, MenuOptions::CHECK_BALANCE},
             {opt2, MenuOptions::TAKE_MONEY},
             {opt3, MenuOptions::LOGOUT},
-            {opt4, MenuOptions::DEBUG_ECHO}
         };
 
         std::string resStr = "Type:\n- \'" + opt1 + "\' to check your balance.\n";
         resStr += "- \'" + opt2 + "\' to retrieve money from your account.\n";
         resStr += "- \'" + opt3 + "\' to logout.\n";
-        resStr += "- \'" + opt4 + "\' to enter echo mode.";
         return resStr;
     }
 
@@ -88,10 +81,7 @@ class ResponseManager {
                 return "ERROR Something went wrong, please try again.";
             }
             case MenuOptions::LOGOUT:
-                return "Currently logged out. Please login again for new operations";
-            //Let's assume example 5 is an echo mode
-            case MenuOptions::DEBUG_ECHO:
-                return "response_" + input;    
+                return "Currently logged out. Please login again for new operations"; 
             default:
                 break;
         }
@@ -113,9 +103,6 @@ class ResponseManager {
             case MenuOptions::LOGOUT:
                 currentOption = MenuOptions::LOGOUT;
                 return "Logged out";         
-            case MenuOptions::DEBUG_ECHO:
-                currentOption = MenuOptions::DEBUG_ECHO;
-                return "Selected echo mode.";    
             default:
                 return "Invalid selection and/or input, please try again.";       
             }

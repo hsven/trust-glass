@@ -69,7 +69,7 @@ button {
 
 <body>
 
-<h3>Welcome {{ userName }}</h3>
+<h3>Welcome!</h3>
 <!-- <h2>Home Page</h2> -->
 
 <div class="row">
@@ -79,16 +79,6 @@ button {
                 {% csrf_token %}
                 {{ form }}
     
-                <!-- <label>Username: </label>   
-                <input type="text" placeholder="Enter Username" name="username" required>  
-                <label>Password: </label>   
-                <input type="password" placeholder="Enter Password" name="password" required>  
-                <label>Session Key: </label>   
-                <input type="text" placeholder="Enter Session Key" name="session" required>  
-                    -->
-                <!-- <input type="checkbox" checked="checked"> Remember me    -->
-                <!-- <button type="button" class="cancelbtn"> Cancel</button>   
-                Forgot <a href="#"> password? </a>    -->
                 <button type="submit">Submit</button>
             </div>   
         </form>   
@@ -97,7 +87,6 @@ button {
         <center> <h3> Server Message </h3> </center>
         <div class="box">
             {{ qrCode | safe }}
-            <!-- {{ qrCode | safe }}   -->
         </div>
     </div>
 

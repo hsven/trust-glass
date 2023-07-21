@@ -10,8 +10,6 @@ lastMessage : str = ""
 
 def connectToEnclave():
     # SET VARIABLES
-    print("Helllo!")
-    packet, reply = "<packet>SOME_DATA</packet>", ""
     HOST, PORT = '127.0.0.1', 4433
 
     # PROTOCOL_TLS_CLIENT requires valid cert chain and hostname
@@ -21,19 +19,17 @@ def connectToEnclave():
     global sock, ssock, lastMessage
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     ssock = context.wrap_socket(sock, server_hostname=HOST)
-    # print(ssock.version())
     ssock.connect((HOST, PORT))
-    # print("Test")
+
     lastMessage = receiveResponse()
     print(lastMessage)
 
 def sendInput(text : str):
+    # 'END' appended to mark the end of a message
    ssock.sendall((text + "END").encode())
-#    print(receiveResponse())
 
 def receiveResponse() -> str:
     response : str = ""
-    # ssock.recv(1200)
 
     while True:
         input = ssock.recv(1200).decode("utf-8")
@@ -48,7 +44,7 @@ def receiveResponse() -> str:
     return response
 
 def createQRCode(text : str) -> str:
-    errcorlvl = QrCode.Ecc.LOW  # Error correction level
+    errcorlvl = QrCode.Ecc.LOW  # Low ECC allows a higher character count in a single QR code
 	
 	# Make and print the QR Code symbol
     qr = QrCode.encode_text(text, errcorlvl)
@@ -69,10 +65,3 @@ def qrToSVG(qr: QrCode, border: int) -> str:
 	<path d="{" ".join(parts)}" fill="#000000"/>
 </svg>
 """
-# 	return f"""<?xml version="1.0" encoding="UTF-8"?>
-# <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-# <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 {qr.get_size()+border*2} {qr.get_size()+border*2}" stroke="none">
-# 	<rect width="100%" height="100%" fill="#FFFFFF"/>
-# 	<path d="{" ".join(parts)}" fill="#000000"/>
-# </svg>
-# """

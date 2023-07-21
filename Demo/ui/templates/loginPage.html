@@ -73,25 +73,12 @@ button {
 </style>   
 </head>    
 <body>    
-    <!-- value="{{ username }}" -->
     <center> <h1> Demo Login Form </h1> </center>   
     <div class="row">
         <div class="column">
             <form action="/home/" method="post">  
                 <div class="container">   
                     {% csrf_token %}
-                    <!-- {{ form }} -->
-        
-                    <!-- <label>Username: </label>   
-                    <input type="text" placeholder="Enter Username" name="username" required>  
-                    <label>Password: </label>   
-                    <input type="password" placeholder="Enter Password" name="password" required>  
-                    <label>Session Key: </label>   
-                    <input type="text" placeholder="Enter Session Key" name="session" required>  
-                        -->
-                    <!-- <input type="checkbox" checked="checked"> Remember me    -->
-                    <!-- <button type="button" class="cancelbtn"> Cancel</button>   
-                    Forgot <a href="#"> password? </a>    -->
                     <button type="submit">Login</button>
                 </div>   
             </form>   

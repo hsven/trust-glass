@@ -13,10 +13,12 @@ Check the [makefile](/Demo/EnclaveApp/Makefile) of our demonstration application
 # Usage
 1. In your enclave's code, start by instancing a TrustGlass object:
 ```cpp
-    TrustGlass* trustGlass = new TrustGlass();
+#include "TrustGlass_TEE/TrustGlass.h"
+
+TrustGlass* trustGlass = new TrustGlass();
 ```
 
-2. Set up the long term shared key. This key should be encoded as Base64, and be the same as the key present in the Android application
+2. Set up the long-term shared key. This key should be encoded as Base64, and be the same as the key present in the Android application
 ```cpp
 // Base64 key used for the demo
     const char* in = "W/EC20gaJJTuMGzqwIezjUeSdJhHh0VpiTWrZiHOUO3h4faUyy9ALcImwphBIFoawXDVfj2jti28    yjYAQJJcHMZwsRkx37iwO6sWL+6xPcF+bUuG3G174Itc2wV+7poGNH2D9q2umCLJC/l+6UdyTvjp    CBNd6EEkMk0SeJzp0MGNVn7zYcs7C6H7FhqwL9lP94Bl6nw7r8kHx9KPVQh+krlGzHmoc5Z+wIx4    qkQ61smpc4jsOcfWSzcIWXEbTM8LK8LZYF4g+jbKvZ/bbDhCX6U381eZhZ0y8yanC5B98Lw9QtRM    tV9Ge05XcHSA8jpMtngdo/+BIlRADwNuAWPGLg=="
@@ -34,12 +36,16 @@ Check the [makefile](/Demo/EnclaveApp/Makefile) of our demonstration application
     char* response = trustGlass->do_pin_login();
 ```
 
-5. With the user autheticated, they can start exchanging messages with TrustGlass. Before sending a message to the user, let TrustGlass process it.
+5. With the user authenticated, they can start exchanging messages with TrustGlass. Before sending a message to the user, let TrustGlass process it.
 ```cpp
-    std::string content = "Hello from TrustGlass!"
-    //Empty keyboard map
-    std::string map = "null";
-    char* response = trustGlass->do_message(content, map);
+std::string content = "Hello from TrustGlass!"
+//Empty keyboard map
+std::string map = "null";
+char* response = trustGlass->do_message(content, map);
+
+//If you want to include a custom header
+std::string header = "CustomHDR";
+char* responseWithCustomHeader = trustGlass->create_response(header, content, map, true)->generate_final();
 ```
 
 All of TrustGlass' methods can be verified in its [header file](/TrustGlass_TEE/TrustGlass.h).
